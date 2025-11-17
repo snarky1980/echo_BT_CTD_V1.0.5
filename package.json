@@ -1,0 +1,63 @@
+{
+  "name": "echo-email-assistant",
+  "private": false,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "ECHO Email Template Assistant - Professional email template management with rich text editing, AI assistance, and variable management",
+  "homepage": "https://echomt.jskennedy.net/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/snarky1980/echo_MT.git"
+  },
+  "scripts": {
+    "dev": "vite",
+    "dev:fixed": "vite",
+    "start": "vite",
+    "dev:clean": "node -e \"const {execSync}=require('node:child_process');try{const p=execSync('lsof -ti:5173',{stdio:['ignore','pipe','ignore']}).toString().trim();if(p) execSync('kill -9 '+p);}catch(e){}\" && npm exec vite",
+    "dev:retry": "(npm exec vite -- --strictPort || npm exec vite -- --port 5174 --strictPort || npm exec vite -- --port 5175 --strictPort)",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve:static": "npx http-server -p 5173 dist",
+    "predeploy": "node scripts/sync-templates.mjs",
+    "deploy": "npm run build && npx --yes gh-pages -d dist",
+    "templates:replace": "node scripts/replace-templates.mjs",
+    "convert:docx": "node scripts/docx-to-templates.mjs",
+    "merge:fr-en": "node scripts/merge-fr-en.mjs",
+    "convert:xlsx": "node scripts/xlsx-to-templates.mjs",
+    "convert:xlsx:variables": "node scripts/xlsx-to-variables.mjs",
+    "lint": "eslint src --ext .js,.jsx",
+    "lint:fix": "eslint src --ext .js,.jsx --fix"
+  },
+  "dependencies": {
+    "@lexical/react": "^0.38.1",
+    "@radix-ui/react-alert-dialog": "^1.1.13",
+    "@radix-ui/react-label": "^2.1.6",
+    "@radix-ui/react-scroll-area": "^1.2.8",
+    "@radix-ui/react-select": "^2.2.4",
+    "@radix-ui/react-separator": "^1.1.7",
+    "@radix-ui/react-slot": "^1.2.2",
+    "@tailwindcss/vite": "^4.1.7",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "fuse.js": "^7.0.0",
+    "lexical": "^0.38.1",
+    "lucide-react": "^0.510.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^3.3.0",
+    "tailwindcss": "^4.1.7",
+    "tw-animate-css": "^1.4.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.4.1",
+    "cheerio": "^1.0.0-rc.12",
+    "eslint": "^9.38.0",
+    "gh-pages": "^6.1.1",
+    "globals": "^16.4.0",
+    "mammoth": "^1.6.0",
+    "vite": "^6.3.5",
+    "xlsx": "^0.18.5"
+  }
+}

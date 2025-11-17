@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Email Assistant – Console simple</title>
+  <!-- meta used for GitHub repo autodetection for JSON publish -->
+  <meta name="gh-repo" content="snarky1980/echo_MT" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href="/favicon.ico" />
+    <style>
+      :root { --border:#e2e8f0; --panel:#fff; --muted:#64748b; --ink:#0f172a; --teal:#059669; }
+      *{box-sizing:border-box}
+      body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f8fafc;color:var(--ink)}
+      .topbar{position:sticky;top:0;z-index:10;display:flex;gap:8px;align-items:center;padding:10px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.9);backdrop-filter:blur(6px)}
+      .topbar .brand{font-weight:800}
+      .topbar .spacer{flex:1}
+      .btn{border:1px solid var(--border);background:#fff;padding:8px 12px;border-radius:10px;font-weight:700;cursor:pointer}
+      .btn.primary{background:var(--teal);border-color:var(--teal);color:#fff}
+  .btn.danger{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+      .seg{display:inline-flex;gap:4px;border:1px solid var(--border);border-radius:10px;padding:4px;background:#f1f5f9}
+      .seg button{border:0;background:transparent;padding:6px 10px;border-radius:8px;font-weight:800;color:var(--muted);cursor:pointer}
+      .seg button[aria-pressed="true"]{background:#fff;color:var(--ink)}
+      .frame{display:grid;grid-template-columns:320px 1fr;gap:12px;padding:12px}
+      .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px}
+      .panel .head{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+      .panel .body{padding:12px}
+      .search{display:flex;gap:8px}
+      .search input{flex:1;border:1px solid var(--border);padding:8px 10px;border-radius:10px}
+      .list{display:grid;gap:8px;max-height:calc(100vh - 230px);overflow:auto;margin-top:10px}
+      .tile{border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff;cursor:pointer}
+      .tile.active{border-color:#99f6e4;box-shadow:inset 0 0 0 2px rgba(16,185,129,.15)}
+      .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+      .field{display:grid;gap:6px}
+      .field label{font-size:12px;color:var(--muted);font-weight:700}
+      .field input,.field textarea,.field select{border:1px solid var(--border);border-radius:10px;padding:8px 10px;font:inherit;width:100%}
+      .field textarea{min-height:120px;resize:vertical}
+      .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+      .chips{display:flex;gap:6px;flex-wrap:wrap}
+      .chip{background:#ecfeff;color:#0e7490;border:1px solid #bae6fd;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}
+      .notice{display:none;position:fixed;top:10px;right:10px;background:#111827;color:#fff;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.1);font-weight:700;z-index:1000}
+  .hidden{display:none!important}
+  /* Variables editor */
+  .vars-editor{margin-top:8px;border-top:1px dashed var(--border);padding-top:10px}
+  .vgrid{display:grid;grid-template-columns: minmax(140px, 240px) 1fr 1fr minmax(130px, 180px) minmax(130px, 180px);gap:8px;align-items:start}
+  .vrow{display:contents}
+  .vkey{font-weight:700;padding:6px 8px;background:#f1f5f9;border:1px solid var(--border);border-radius:8px;color:#334155}
+  .vinput{border:1px solid var(--border);border-radius:10px;padding:8px 10px;font:inherit;width:100%}
+  .vhead{font-size:12px;color:var(--muted);font-weight:700}
+  @media (max-width: 900px){ .vgrid{grid-template-columns:1fr} .vkey{margin-bottom:2px} }
+      @media (max-width: 1000px){ .frame{grid-template-columns:1fr} .row{grid-template-columns:1fr} }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="brand">Admin (simple) <span id="updated-badge" style="display:none;margin-left:6px;padding:4px 8px;font-size:11px;font-weight:700;border:1px solid #bae6fd;background:#ecfeff;color:#0e7490;border-radius:8px" title="Dernière mise à jour distante du JSON">–</span></div>
+      <div class="spacer"></div>
+      <button class="btn" id="btn-import">Importer JSON</button>
+      <input id="file" type="file" class="hidden" accept=".json,application/json" style="position:absolute;left:-9999px" />
+      <button class="btn" id="btn-import-xlsx">Importer Excel</button>
+      <select id="import-mode" title="Mode d'import" style="border:1px solid var(--border);background:#fff;padding:6px 8px;border-radius:10px">
+        <option value="merge">Fusionner</option>
+        <option value="replace">Remplacer</option>
+      </select>
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)"><input id="import-auto-export" type="checkbox" /> Auto-export JSON</label>
+      <input id="file-xlsx" type="file" class="hidden" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="position:absolute;left:-9999px" />
+      <button class="btn" id="btn-dl-template-csv" title="Télécharger un modèle CSV avec les colonnes requises">Modèle CSV</button>
+      <button class="btn" id="btn-dl-template-xlsx" title="Télécharger un modèle Excel (.xlsx) avec les colonnes requises">Modèle XLSX</button>
+      <button class="btn" id="btn-export-xlsx" title="Exporter toutes les données courantes en Excel (.xlsx)">Exporter Excel</button>
+      <button class="btn primary" id="btn-export">Exporter JSON</button>
+      <button class="btn danger" id="btn-update-json" title="Remplacer entièrement les données depuis un collage / fichier JSON">Mettre à jour JSON</button>
+      <button class="btn" id="btn-category-colors" title="Gérer les couleurs des catégories">Couleurs</button>
+      <button class="btn" id="btn-github" title="Configurer publication GitHub">GitHub</button>
+      <button class="btn" id="btn-reset">Réinitialiser</button>
+      <button class="btn" id="btn-help">Aide</button>
+    </div>
+
+    <div id="notice" class="notice"></div>
+
+    <!-- Category Colors Modal -->
+    <div id="modal-category-colors" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
+      <div style="background:#fff;border:1px solid var(--border);border-radius:14px;width:min(720px,92vw);max-height:85vh;display:flex;flex-direction:column">
+        <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <strong>Couleurs des catégories</strong>
+          <button onclick="document.getElementById('modal-category-colors').style.display='none'" style="border:0;background:transparent;font-size:18px;cursor:pointer">×</button>
+        </div>
+        <div id="category-colors-body" style="padding:14px;overflow:auto;flex:1">
+          <p style="margin:0 0 12px;color:var(--muted);font-size:13px">Définir une couleur indicatrice pour chaque catégorie (affichée dans le sélecteur de modèles).</p>
+          <div id="category-colors-list" style="display:grid;gap:10px"></div>
+        </div>
+        <div style="padding:12px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" onclick="document.getElementById('modal-category-colors').style.display='none'">Fermer</button>
+          <button class="btn primary" id="btn-save-category-colors">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <aside class="panel">
+        <div class="head"><strong>Modèles</strong></div>
+        <div class="body">
+          <div class="search"><input id="search" placeholder="Rechercher…" /></div>
+          <div id="list" class="list"></div>
+        </div>
+      </aside>
+
+      <main class="panel">
+        <div class="head"><strong id="hdr">Éditeur</strong>
+          <div class="toolbar">
+            <button class="btn" id="btn-new">Nouveau</button>
+            <button class="btn" id="btn-delete">Supprimer</button>
+            <button class="btn" id="btn-sync-vars">Sync variables</button>
+            <button class="btn" id="btn-add-missing">Ajouter variables manquantes</button>
+            <button class="btn" id="btn-preview">Aperçu</button>
+          </div>
+        </div>
+        <div class="body" id="editor">
+          <div class="row">
+            <div class="field" style="grid-column:1 / span 2"><label>ID</label><input id="tpl-id" /></div>
+          </div>
+          <div class="row">
+            <div class="field"><label>Catégorie (FR)</label><input id="tpl-cat-fr" /></div>
+            <div class="field"><label>Category (EN)</label><input id="tpl-cat-en" /></div>
+          </div>
+          <div class="row">
+            <div class="field"><label>Titre (FR)</label><input id="tpl-title-fr" /></div>
+            <div class="field"><label>Titre (EN)</label><input id="tpl-title-en" /></div>
+          </div>
+          <div class="row">
+            <div class="field"><label>Description (FR)</label><input id="tpl-desc-fr" /></div>
+            <div class="field"><label>Description (EN)</label><input id="tpl-desc-en" /></div>
+          </div>
+          <div class="row">
+            <div class="field"><label>Objet (FR)</label><input id="tpl-subj-fr" /></div>
+            <div class="field"><label>Objet (EN)</label><input id="tpl-subj-en" /></div>
+          </div>
+          <div class="row">
+            <div class="field"><label>Corps (FR)</label><textarea id="tpl-body-fr"></textarea></div>
+            <div class="field"><label>Corps (EN)</label><textarea id="tpl-body-en"></textarea></div>
+          </div>
+          <div class="field">
+            <label style="display:flex;align-items:center;gap:8px">Variables du modèle – Descriptions FR / EN</label>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+              <input id="vars-search" placeholder="Filtrer variables…" style="flex:1;min-width:220px;border:1px solid var(--border);padding:6px 10px;border-radius:10px" />
+              <button class="btn" id="btn-copy-vars-fr" title="Copier lignes FR">Copier FR</button>
+              <button class="btn" id="btn-copy-vars-en" title="Copier lignes EN">Copier EN</button>
+              <button class="btn" id="btn-validate-vars" title="Valider variables (manquants)">Validation</button>
+            </div>
+            <div id="vars" class="chips"></div>
+            <div id="vars-editor" class="vars-editor"></div>
+            <div id="vars-validation" style="margin-top:10px;font-size:12px;color:var(--muted);display:none"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="./assets/admin-simple.js"></script>
+    <script>
+      // Lightweight badge population: fetch raw main JSON headers quickly
+      (async function(){
+        try {
+          const repo = document.querySelector('meta[name="gh-repo"]')?.content || 'snarky1980/echo_MT';
+          const url = `https://raw.githubusercontent.com/${repo}/main/complete_email_templates.json`;
+          const resp = await fetch(url, { cache:'no-store' });
+          if(!resp.ok) return;
+          const text = await resp.text();
+          const json = JSON.parse(text);
+          const ts = json?.metadata?.updatedAt || json?.metadata?.generatedAt || null;
+          if(ts){
+            const badge = document.getElementById('updated-badge');
+            badge.textContent = new Date(ts).toLocaleString('fr-FR',{ hour12:false });
+            badge.style.display = 'inline-block';
+          }
+        } catch(e){ /* silent */ }
+      })();
+    </script>
+  </body>
+  </html>

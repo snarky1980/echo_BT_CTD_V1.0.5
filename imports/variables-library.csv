@@ -1,0 +1,13 @@
+name,description_fr,description_en,format,example
+ClientName,Nom complet du client,Full client name,text,Marie Dubois
+ProjectName,Nom du projet,Project name,text,Refonte du site web
+QuoteAmount,Montant total du devis,Total quote amount,text,"15 000 $"
+DeadlineDate,Date d'échéance du projet,Project deadline date,date,2025-12-31
+YourName,Votre nom (expéditeur),Your name (sender),text,Jean Martin
+NewDeadlineDate,Nouvelle date d'échéance,New deadline date,date,2026-01-15
+ReasonForDelay,Raison du retard,Reason for delay,text,Délais techniques imprévus
+DocumentName,Nom du document requis,Required document name,text,Cahier des charges
+RequiredFormat,Format de fichier requis,Required file format,text,PDF
+SubmissionDate,Date limite de soumission,Submission deadline,date,2025-11-30
+QuestionsList,Liste des questions ou clarifications,List of questions or clarifications,text,"1. Question A\n2. Question B"
+ResponseDeadline,Date limite pour la réponse,Response deadline,date,2025-11-20

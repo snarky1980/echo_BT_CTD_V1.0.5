@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aide — Console simple</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <style>
+      :root { --border:#e2e8f0; --muted:#64748b; --ink:#0f172a; --teal:#059669; }
+      *{box-sizing:border-box}
+      body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f8fafc;color:var(--ink)}
+      header{position:sticky;top:0;display:flex;align-items:center;gap:8px;padding:10px;border-bottom:1px solid var(--border);background:#fff}
+      .title{font-weight:800}
+      .spacer{flex:1}
+      .btn{border:1px solid var(--border);background:#fff;padding:8px 12px;border-radius:10px;font-weight:700;cursor:pointer}
+      .btn.primary{background:var(--teal);border-color:var(--teal);color:#fff}
+      main{padding:16px;max-width:900px;margin:0 auto}
+      .chip{display:inline-block;background:#ecfeff;color:#0e7490;border:1px solid #bae6fd;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700}
+      h2{margin:10px 0}
+      h3{margin:10px 0}
+      .card{background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 30px rgba(2,6,23,.06);padding:14px}
+      code{background:#f1f5f9;border:1px solid var(--border);border-radius:6px;padding:0 4px}
+      ol{margin:0 0 12px 18px}
+      ul{margin:0 0 0 18px}
+      footer{padding:12px;color:var(--muted);text-align:center}
+      @media (max-width: 700px){ main{padding:12px} }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="title">Aide — Modifier un modèle (sans programmation)</div>
+      <div class="spacer"></div>
+      <button class="btn" id="btn-toggle-submit" onclick="toggleSubmitForm()">📝 Soumettre un modèle</button>
+      <button class="btn" onclick="window.close()">Fermer</button>
+    </header>
+    <main>
+      <div class="card" style="margin-bottom:12px">
+        <div class="chip">Conseil</div>
+        <div style="margin-top:6px">Tout est enregistré en brouillon local. « Réinitialiser » supprime le brouillon et recharge le fichier d’origine.</div>
+      </div>
+      <section class="card" style="margin-bottom:12px">
+        <h3>Option A — Modification rapide (dans la page)</h3>
+        <ol>
+          <li>Recherchez puis sélectionnez le modèle dans la liste (colonne de gauche).</li>
+          <li>Basculez la langue (FR/EN) en haut si nécessaire.</li>
+          <li>Modifiez <em>Titre</em>, <em>Description</em>, <em>Objet</em> et <em>Corps</em>.</li>
+          <li>Cliquez « Sync variables » pour détecter les <code>&lt;&lt;variables&gt;&gt;</code> dans Objet/Corps.</li>
+          <li>Cliquez « Ajouter variables manquantes » pour les ajouter au catalogue (bibliothèque de variables).</li>
+          <li>Exportez : « Exporter JSON » (ou « Exporter Excel ») pour partager vos changements.</li>
+        </ol>
+      </section>
+      <section class="card" style="margin-bottom:12px">
+        <h3>Option B — Avec Excel (plusieurs modèles)</h3>
+        <ol>
+          <li>Cliquez « Exporter Excel » pour obtenir l’état actuel en .xlsx.</li>
+          <li>Ouvrez le fichier dans Excel, modifiez ou ajoutez des lignes.
+            <ul>
+              <li>Conservez la syntaxe des variables : <code>&lt;&lt;NomVariable&gt;&gt;</code> (ex : <code>&lt;&lt;ProjectNumber&gt;&gt;</code>).</li>
+              <li>L’ID doit être unique (lettres/chiffres/souligné). Si doublon, l’import ajoutera un suffixe.</li>
+            </ul>
+          </li>
+          <li>Enregistrez puis « Importer Excel » dans la console simple pour charger vos changements.</li>
+          <li>Vérifiez la liste et faites des corrections au besoin ; tout reste en brouillon.</li>
+          <li>Exportez en JSON pour finaliser ou transmettre.</li>
+        </ol>
+      </section>
+      <section class="card">
+        <h3>FAQ rapide</h3>
+        <ul>
+          <li><strong>Colonnes Excel manquantes</strong> — utilisez « Modèle XLSX/CSV » pour repartir d'un gabarit valide.</li>
+          <li><strong>Variables</strong> — la liste se remplit à partir des textes (Objet/Corps). Ajoutez ensuite leurs descriptions dans le catalogue.</li>
+          <li><strong>Publication</strong> — exportez le JSON et partagez-le, ou ouvrez le « Mode complet » si disponible.</li>
+        </ul>
+      </section>
+
+      <!-- Submit Template Form -->
+      <section id="submit-form-section" class="card" style="display:none;margin-top:16px">
+        <h3>📝 Soumettre un nouveau modèle</h3>
+        <p style="color:var(--muted);font-size:14px;margin:0 0 16px">Partagez un modèle d'email que vous souhaitez ajouter à la bibliothèque.</p>
+        
+        <div id="submit-notice" style="display:none;padding:12px;border-radius:8px;margin-bottom:16px;font-size:14px;font-weight:600"></div>
+
+        <form id="submit-form" style="display:grid;gap:16px">
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">ID du modèle <span style="color:#dc2626">*</span></label>
+            <input type="text" id="template-id" placeholder="ex: welcome_email" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">Identifiant unique (lettres, chiffres, underscore)</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Catégorie (FR) <span style="color:#dc2626">*</span></label>
+              <input type="text" id="category-fr" placeholder="Service client" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Catégorie (EN) <span style="color:#dc2626">*</span></label>
+              <input type="text" id="category-en" placeholder="Customer Care" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+            </div>
+          </div>
+
+          <h4 style="margin:8px 0 0;padding-top:8px;border-top:1px solid var(--border)">🇫🇷 Version française</h4>
+          
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Titre (FR) <span style="color:#dc2626">*</span></label>
+            <input type="text" id="title-fr" placeholder="Bienvenue – Nouveau client" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Description (FR) <span style="color:#dc2626">*</span></label>
+            <input type="text" id="description-fr" placeholder="Courriel de bienvenue" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Objet (FR) <span style="color:#dc2626">*</span></label>
+            <input type="text" id="subject-fr" placeholder="Bienvenue !" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Corps (FR) <span style="color:#dc2626">*</span></label>
+            <textarea id="body-fr" placeholder="Bonjour <<nom_client>>,&#10;&#10;Nous sommes ravis..." required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit;min-height:100px"></textarea>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">Utilisez &lt;&lt;nom_variable&gt;&gt; pour les placeholders</div>
+          </div>
+
+          <h4 style="margin:8px 0 0;padding-top:8px;border-top:1px solid var(--border)">🇬🇧 English version</h4>
+          
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Title (EN) <span style="color:#dc2626">*</span></label>
+            <input type="text" id="title-en" placeholder="Welcome – New customer" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Description (EN) <span style="color:#dc2626">*</span></label>
+            <input type="text" id="description-en" placeholder="Welcome email" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Subject (EN) <span style="color:#dc2626">*</span></label>
+            <input type="text" id="subject-en" placeholder="Welcome!" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+          </div>
+
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Body (EN) <span style="color:#dc2626">*</span></label>
+            <textarea id="body-en" placeholder="Hello <<customer_name>>,&#10;&#10;We're excited..." required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit;min-height:100px"></textarea>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">Use &lt;&lt;variable_name&gt;&gt; for placeholders</div>
+          </div>
+
+          <h4 style="margin:8px 0 0;padding-top:8px;border-top:1px solid var(--border)">📋 Variables (optionnel)</h4>
+          
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Description des variables (FR)</label>
+            <textarea id="variables-fr" placeholder="<<nom_client>>:Nom du client(Jean)&#10;<<numero_compte>>:Numéro de compte(AC-12345)" style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit;min-height:80px"></textarea>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">Format: &lt;&lt;variable&gt;&gt;:Description(Exemple) – une par ligne</div>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Variables description (EN)</label>
+            <textarea id="variables-en" placeholder="<<customer_name>>:Customer name(John)&#10;<<account_number>>:Account number(AC-12345)" style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit;min-height:80px"></textarea>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">Format: &lt;&lt;variable&gt;&gt;:Description(Example) – one per line</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Votre nom</label>
+              <input type="text" id="submitter-name" placeholder="Jean Dupont" style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Votre email</label>
+              <input type="email" id="submitter-email" placeholder="jean@example.com" style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+            </div>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Notes</label>
+            <textarea id="notes" placeholder="Commentaires ou contexte..." style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit;min-height:60px"></textarea>
+          </div>
+
+          <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:8px;border-top:1px solid var(--border)">
+            <button type="button" class="btn" onclick="toggleSubmitForm()">Annuler</button>
+            <button type="submit" class="btn primary">📤 Soumettre</button>
+          </div>
+        </form>
+      </section>
+    </main>
+    <footer>Astuce : vous pouvez garder cette fenêtre ouverte pendant que vous travaillez.</footer>
+    <script>
+      // Focus the window, hint for accessibility
+      window.focus?.();
+
+      const submitSection = document.getElementById('submit-form-section');
+      const submitNotice = document.getElementById('submit-notice');
+      const submitForm = document.getElementById('submit-form');
+      const btnToggle = document.getElementById('btn-toggle-submit');
+
+      function toggleSubmitForm() {
+        const isVisible = submitSection.style.display !== 'none';
+        submitSection.style.display = isVisible ? 'none' : 'block';
+        btnToggle.textContent = isVisible ? '📝 Soumettre un modèle' : '❌ Fermer le formulaire';
+        if (!isVisible) {
+          submitSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+
+      function showNotice(msg, type = 'success') {
+        submitNotice.textContent = msg;
+        submitNotice.style.display = 'block';
+        submitNotice.style.background = type === 'success' ? '#d1fae5' : '#fee2e2';
+        submitNotice.style.color = type === 'success' ? '#065f46' : '#991b1b';
+        submitNotice.style.border = type === 'success' ? '1px solid #6ee7b7' : '1px solid #fca5a5';
+        setTimeout(() => submitNotice.style.display = 'none', 5000);
+      }
+
+      // Sanitize ID input
+      document.getElementById('template-id').addEventListener('input', (e) => {
+        const val = e.target.value;
+        const sanitized = val.replace(/[^A-Za-z0-9_]+/g, '_');
+        if (val !== sanitized) e.target.value = sanitized;
+      });
+
+      submitForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = {
+          id: document.getElementById('template-id').value.trim(),
+          category_fr: document.getElementById('category-fr').value.trim(),
+          category_en: document.getElementById('category-en').value.trim(),
+          title_fr: document.getElementById('title-fr').value.trim(),
+          title_en: document.getElementById('title-en').value.trim(),
+          description_fr: document.getElementById('description-fr').value.trim(),
+          description_en: document.getElementById('description-en').value.trim(),
+          subject_fr: document.getElementById('subject-fr').value.trim(),
+          subject_en: document.getElementById('subject-en').value.trim(),
+          body_fr: document.getElementById('body-fr').value.trim(),
+          body_en: document.getElementById('body-en').value.trim(),
+          variables_fr: document.getElementById('variables-fr').value.trim(),
+          variables_en: document.getElementById('variables-en').value.trim(),
+          submitter_name: document.getElementById('submitter-name').value.trim(),
+          submitter_email: document.getElementById('submitter-email').value.trim(),
+          notes: document.getElementById('notes').value.trim(),
+          timestamp: new Date().toISOString()
+        };
+
+        try {
+          // Save to localStorage for the admin console to pick up
+          const existingSubmissions = JSON.parse(localStorage.getItem('ea_template_submissions') || '[]');
+          existingSubmissions.push(formData);
+          localStorage.setItem('ea_template_submissions', JSON.stringify(existingSubmissions));
+
+          // Generate a downloadable JSON file
+          const blob = new Blob([JSON.stringify(formData, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `template_submission_${formData.id}_${Date.now()}.json`;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            URL.revokeObjectURL(url);
+            a.remove();
+          }, 1000);
+
+          showNotice('✅ Modèle soumis avec succès ! Un fichier JSON a été téléchargé.', 'success');
+          
+          // Reset form after 2 seconds
+          setTimeout(() => {
+            submitForm.reset();
+          }, 2000);
+
+        } catch (error) {
+          console.error('Submission error:', error);
+          showNotice('❌ Erreur lors de la soumission. Veuillez réessayer.', 'error');
+        }
+      });
+    </script>
+  </body>
+  </html>

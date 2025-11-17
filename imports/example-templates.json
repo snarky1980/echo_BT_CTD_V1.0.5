@@ -1,0 +1,14 @@
+[
+  {
+    "id": "quotes_no_approval_required",
+    "category": "Quotes and approvals",
+    "title": { "en": "Quotes – no approval required", "fr": "" },
+    "description": { "en": "", "fr": "" },
+    "subject": { "en": "Project <<ProjectNumber>> – quote and confirmation", "fr": "" },
+    "body": {
+      "en": "Hello,\n\nWe have received Project <<ProjectNumber>>. Based on our assessment, it will take approximately <<NbDays>> working day(s) to complete. As per your instructions, we have immediately begun working on the project and will deliver it by the expected deadline.\n\nPlease feel free to contact us if you have any questions or need more information.\n\nBest regards,",
+      "fr": ""
+    },
+    "variables": ["ProjectNumber", "NbDays"]
+  }
+]

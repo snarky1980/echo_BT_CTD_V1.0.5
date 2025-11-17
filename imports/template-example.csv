@@ -1,0 +1,81 @@
+id,category,title_fr,title_en,description_fr,description_en,subject_fr,subject_en,body_fr,body_en,variables
+devis_approbation,Devis et approbations,Demande d'approbation de devis,Quote approval request,Demander l'approbation d'un devis pour un projet,Request approval for a project quote,Approbation requise - Devis pour <<ProjectName>>,Approval Required - Quote for <<ProjectName>>,"Bonjour <<ClientName>>,
+
+Je vous écris pour solliciter votre approbation concernant le devis pour le projet <<ProjectName>>.
+
+Montant total : <<QuoteAmount>>
+Date d'échéance : <<DeadlineDate>>
+
+Merci de confirmer votre accord à votre plus tôt.
+
+Cordialement,
+<<YourName>>","Hello <<ClientName>>,
+
+I am writing to request your approval for the quote related to the <<ProjectName>> project.
+
+Total amount: <<QuoteAmount>>
+Deadline: <<DeadlineDate>>
+
+Please confirm your agreement at your earliest convenience.
+
+Best regards,
+<<YourName>>",ClientName;ProjectName;QuoteAmount;DeadlineDate;YourName
+livraison_retard,Délai et livraison,Notification de retard de livraison,Delivery delay notification,Informer le client d'un retard dans la livraison,Inform client of a delivery delay,Mise à jour - Délai de livraison pour <<ProjectName>>,Update - Delivery Timeline for <<ProjectName>>,"Bonjour <<ClientName>>,
+
+Nous tenons à vous informer que la livraison du projet <<ProjectName>> sera retardée.
+
+Nouvelle date prévue : <<NewDeadlineDate>>
+Raison du retard : <<ReasonForDelay>>
+
+Nous nous excusons pour ce désagrément et restons à votre disposition pour toute question.
+
+Cordialement,
+<<YourName>>","Hello <<ClientName>>,
+
+We would like to inform you that the delivery of the <<ProjectName>> project will be delayed.
+
+New expected date: <<NewDeadlineDate>>
+Reason for delay: <<ReasonForDelay>>
+
+We apologize for any inconvenience and remain at your disposal for any questions.
+
+Best regards,
+<<YourName>>",ClientName;ProjectName;NewDeadlineDate;ReasonForDelay;YourName
+document_format,Documents et formats,Demande de format de document,Document format request,Demander au client de fournir un document dans un format spécifique,Request client to provide document in specific format,Format de document requis pour <<ProjectName>>,Document Format Required for <<ProjectName>>,"Bonjour <<ClientName>>,
+
+Pour poursuivre le travail sur <<ProjectName>>, nous aurions besoin que vous nous fournissiez le document <<DocumentName>> au format <<RequiredFormat>>.
+
+Date limite de soumission : <<SubmissionDate>>
+
+N'hésitez pas à nous contacter si vous avez des questions.
+
+Cordialement,
+<<YourName>>","Hello <<ClientName>>,
+
+To proceed with the work on <<ProjectName>>, we would need you to provide us with the <<DocumentName>> document in <<RequiredFormat>> format.
+
+Submission deadline: <<SubmissionDate>>
+
+Please feel free to contact us if you have any questions.
+
+Best regards,
+<<YourName>>",ClientName;ProjectName;DocumentName;RequiredFormat;SubmissionDate;YourName
+instructions_client,Précisions et instructions client,Demande de précisions,Request for clarification,Demander des clarifications au client sur les instructions,Request clarifications from client about instructions,Clarifications nécessaires - <<ProjectName>>,Clarifications Needed - <<ProjectName>>,"Bonjour <<ClientName>>,
+
+Concernant le projet <<ProjectName>>, nous aurions besoin de quelques précisions pour assurer la qualité de notre travail :
+
+<<QuestionsList>>
+
+Votre retour avant le <<ResponseDeadline>> serait grandement apprécié.
+
+Merci d'avance,
+<<YourName>>","Hello <<ClientName>>,
+
+Regarding the <<ProjectName>> project, we would need some clarifications to ensure the quality of our work:
+
+<<QuestionsList>>
+
+Your feedback before <<ResponseDeadline>> would be greatly appreciated.
+
+Thank you in advance,
+<<YourName>>",ClientName;ProjectName;QuestionsList;ResponseDeadline;YourName
