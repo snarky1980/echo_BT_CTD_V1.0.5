@@ -7,7 +7,7 @@
   "homepage": "https://echo-bt-ctd.jskennedy.net/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/snarky1980/echo-bt-ctd.git"
+    "url": "https://github.com/snarky1980/echo-BT-CTD.git"
   },
   "scripts": {
     "dev": "vite",
