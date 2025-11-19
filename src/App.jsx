@@ -5047,13 +5047,27 @@ ${cleanBodyHtml}
       {showAIPanel && (
         <div className="fixed inset-0 z-50" aria-modal="true" role="dialog">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowAIPanel(false)} />
-          <div className="absolute right-0 top-0 h-full w-[420px] bg-white shadow-2xl border-l border-gray-200 p-4 flex flex-col">
-            <div className="flex items-center justify-between mb-3">
-              <div className="font-semibold text-gray-700">Assistant IA</div>
-              <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowAIPanel(false)}>✕</button>
+          <div className="absolute right-0 top-0 h-full w-[420px] bg-gradient-to-br from-gray-50 to-blue-50 shadow-2xl border-l border-gray-200 p-4 flex flex-col">
+            <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-200">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 animate-pulse"></div>
+                <span className="font-semibold text-gray-800">Assistant IA M365</span>
+              </div>
+              <button 
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-200 w-8 h-8 rounded-full flex items-center justify-center transition-all" 
+                onClick={() => setShowAIPanel(false)}
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
             </div>
             <div className="flex-1 overflow-y-auto">
-              <AISidebar emailText={finalBody} onResult={setFinalBody} variables={variables} />
+              <AISidebar
+                emailText={finalBody}
+                onResult={setFinalBody}
+                variables={variables}
+                interfaceLanguage={interfaceLanguage}
+              />
             </div>
           </div>
         </div>

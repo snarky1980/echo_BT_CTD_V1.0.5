@@ -1,302 +1,395 @@
 /* eslint-disable no-unused-vars */
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card.jsx'
 import { Button } from './ui/button.jsx'
-import { Sparkles, Settings, Loader2, MessageCircle, Wand2, CheckCircle, AlertTriangle } from 'lucide-react'
-import { callOpenAI, hasOpenAIKey, setOpenAIKey } from '../utils/openai'
+import { Textarea } from './ui/textarea.jsx'
+import { Sparkles, Copy, CheckCircle, Lightbulb, Zap, Globe, Keyboard, ExternalLink, Info } from 'lucide-react'
 
-const AISidebar = ({ emailText, onResult, variables }) => {
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [showApiKeyInput, setShowApiKeyInput] = useState(false)
-  const [tempApiKey, setTempApiKey] = useState('')
-  const [lastAction, setLastAction] = useState(null)
-  const [result, setResult] = useState('')
+const ACTIONS = {
+  improve: { icon: Sparkles, color: 'from-slate-600 to-slate-700' },
+  formal: { icon: Zap, color: 'from-slate-700 to-indigo-700' },
+  friendly: { icon: Sparkles, color: 'from-emerald-600 to-teal-600' },
+  concise: { icon: Zap, color: 'from-slate-500 to-slate-600' },
+  grammar: { icon: CheckCircle, color: 'from-amber-600 to-orange-600' },
+  translate: { icon: Globe, color: 'from-indigo-600 to-slate-600' },
+  translateToEnglish: { icon: Globe, color: 'from-blue-600 to-slate-600' }
+}
 
-  const handleAIAction = async (action) => {
-    if (!hasOpenAIKey()) {
-      setShowApiKeyInput(true)
-      return
+const TEXT = {
+  fr: {
+    headerTitle: 'Assistant IA M365 Copilot',
+    headerSubtitle: 'Utilisez votre Copilot Microsoft pour améliorer vos emails',
+    quickStartTitle: 'Comment ça marche ?',
+    quickStartSteps: [
+      'Cliquez sur une action ci-dessous pour copier le prompt',
+      'Ouvrez Copilot (Edge, Word ou Outlook)',
+      'Collez le prompt et validez pour obtenir votre version améliorée'
+    ],
+    edgeDetected: 'Edge détecté ! Appuyez sur Ctrl+Shift+. pour ouvrir Copilot',
+    actionsTitle: 'Actions rapides',
+    emptyState: "Sélectionnez un modèle et ajoutez du contenu pour utiliser l'assistant IA",
+    shortcutsTitle: 'Raccourcis utiles',
+    shortcuts: [
+      { label: 'Ouvrir Copilot (Edge)', combo: 'Ctrl+Shift+.' },
+      { label: 'Copier le texte', combo: 'Ctrl+C' },
+      { label: 'Coller le résultat', combo: 'Ctrl+V' }
+    ],
+    edgeButton: 'En savoir plus sur Edge Copilot',
+    tip: 'Astuce : Les variables sont automatiquement conservées lorsque vous utilisez Copilot. Demandez des ajustements spécifiques si nécessaire.',
+    copyAlertNoContent: "Veuillez d'abord sélectionner un modèle et saisir du contenu.",
+    copyError: 'Impossible de copier dans le presse-papiers',
+    edgeAlert: 'Appuyez sur Ctrl+Shift+. (Cmd+Shift+. sur Mac) pour ouvrir Copilot dans Edge',
+    customPromptTitle: 'Instruction personnalisée',
+    customPromptPlaceholder: 'Ajoutez ici une consigne spécifique (ex.: “Réduis à 80 mots en conservant un ton inspirant”).',
+    customPromptHelper: "La consigne sera copiée avec le contenu actuel de l'email.",
+    customPromptButton: 'Copier avec ma consigne',
+    customPromptFallback: 'Améliore ce texte selon la consigne suivante :',
+    actions: {
+      improve: { title: 'Améliorer le texte', prompt: "Améliore ce texte pour le rendre plus professionnel et engageant sans modifier les variables existantes :" },
+      formal: { title: 'Rendre formel', prompt: "Rends ce texte plus formel et professionnel tout en conservant les variables :" },
+      friendly: { title: 'Rendre amical', prompt: "Rends ce texte plus chaleureux et amical tout en gardant un ton professionnel :" },
+      concise: { title: 'Rendre concis', prompt: "Rends ce texte plus concis et direct sans perdre d'information :" },
+      grammar: { title: 'Corriger', prompt: "Corrige la grammaire, l'orthographe et la ponctuation sans modifier les variables :" },
+      translate: { title: 'Traduire EN→FR', prompt: "Traduis ce texte de l'anglais vers le français en gardant un ton professionnel :" },
+      translateToEnglish: { title: 'Traduire FR→EN', prompt: "Traduis ce texte du français vers l'anglais en gardant un ton professionnel :" }
+    }
+  },
+  en: {
+    headerTitle: 'M365 Copilot Writing Assistant',
+    headerSubtitle: 'Use Microsoft Copilot to enhance your email templates',
+    quickStartTitle: 'How it works',
+    quickStartSteps: [
+      'Click an action below to copy the prompt',
+      'Open Copilot in Edge, Word, or Outlook',
+      'Paste the prompt and review the improved result'
+    ],
+    edgeDetected: 'Edge detected! Press Ctrl+Shift+. to open Copilot',
+    actionsTitle: 'Quick actions',
+    emptyState: 'Select a template and add content before using the AI assistant',
+    shortcutsTitle: 'Helpful shortcuts',
+    shortcuts: [
+      { label: 'Open Copilot (Edge)', combo: 'Ctrl+Shift+.' },
+      { label: 'Copy text', combo: 'Ctrl+C' },
+      { label: 'Paste result', combo: 'Ctrl+V' }
+    ],
+    edgeButton: 'Learn more about Edge Copilot',
+    tip: 'Tip: Your placeholders are preserved automatically. Feel free to ask Copilot for specific edits.',
+    copyAlertNoContent: 'Select a template and add content before using the assistant.',
+    copyError: 'Unable to copy to clipboard',
+    edgeAlert: 'Press Ctrl+Shift+. (Cmd+Shift+. on Mac) to open Copilot in Edge',
+    customPromptTitle: 'Custom instruction',
+    customPromptPlaceholder: 'Add a specific instruction (e.g. “Rewrite in 80 words with a confident tone”).',
+    customPromptHelper: 'Your instruction is copied along with the current email content.',
+    customPromptButton: 'Copy with my instruction',
+    customPromptFallback: 'Improve this text using the following instruction:',
+    actions: {
+      improve: { title: 'Improve tone', prompt: 'Improve this email so it sounds more professional and engaging without touching the placeholders:' },
+      formal: { title: 'Make it formal', prompt: 'Rewrite this email with a formal, polished tone. Keep all placeholders intact:' },
+      friendly: { title: 'Make it friendly', prompt: 'Make this email warmer and friendlier while staying professional:' },
+      concise: { title: 'Make it concise', prompt: 'Tighten this email so it stays concise and to the point without losing key details:' },
+      grammar: { title: 'Fix grammar', prompt: 'Fix grammar, spelling, and punctuation while leaving placeholders untouched:' },
+      translate: { title: 'Translate EN→FR', prompt: 'Translate this English email into French with a professional tone:' },
+      translateToEnglish: { title: 'Translate FR→EN', prompt: 'Translate this French email into English with a professional tone:' }
+    }
+  }
+}
+
+const AISidebar = ({ emailText, onResult, variables, interfaceLanguage = 'fr' }) => {
+  const [copiedPrompt, setCopiedPrompt] = useState(null)
+  const [customPrompt, setCustomPrompt] = useState('')
+  const [customCopied, setCustomCopied] = useState(false)
+  const [isEdgeDetected, setIsEdgeDetected] = useState(false)
+
+  const locale = interfaceLanguage?.toLowerCase() === 'en' ? 'en' : 'fr'
+  const t = TEXT[locale]
+
+  useEffect(() => {
+    // Detect if user is on Microsoft Edge
+    const userAgent = navigator.userAgent
+    setIsEdgeDetected(userAgent.includes('Edg/'))
+  }, [])
+
+  const resolveVariableValue = (varName = '') => {
+    if (!varName) return ''
+    const key = varName.trim()
+    if (!key) return ''
+    const direct = variables?.[key]
+    if (direct && String(direct).trim()) return String(direct).trim()
+    // Try lowercase fallback (in case of casing mismatches)
+    const lower = variables?.[key.toLowerCase()]
+    if (lower && String(lower).trim()) return String(lower).trim()
+    return ''
+  }
+
+  const injectVariableValues = (text = '') => {
+    if (!text) return ''
+    return text.replace(/<<\s*([^<>]+?)\s*>>/g, (_, name) => {
+      const value = resolveVariableValue(name)
+      return value || `<<${name.trim()}>>`
+    })
+  }
+
+  // Convert HTML with pills to plain text with variable markers
+  const convertPillsToText = (htmlText) => {
+    if (!htmlText) return ''
+
+    const decodeHtml = (text) => text
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+
+    const decodedRaw = decodeHtml(htmlText)
+
+    // Normalize placeholders that use single angle brackets (e.g., <variable_name_FR>)
+    const normalizedPlaceholders = decodedRaw.replace(/<([A-Za-z0-9-]*_[A-Za-z0-9-]*)>/g, '<<$1>>')
+
+    // If text now contains properly formed <<placeholder>> tokens, preserve them as-is
+    if (/<<\s*[^<>]+\s*>>/.test(normalizedPlaceholders)) {
+      const cleaned = normalizedPlaceholders
+        .replace(/<<\s*>>/g, '')
+        .replace(/\s+\n/g, '\n')
+        .replace(/\n{2,}/g, '\n')
+        .trim()
+      return injectVariableValues(cleaned)
     }
 
+    // Fallback: parse HTML and replace spans with data-var attributes
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = htmlText
+
+    const normalizeValue = (value) => {
+      if (!value) return ''
+      return value
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .trim()
+    }
+
+    const toPlainText = (node) => {
+      let text = ''
+      if (!node) return text
+
+      node.childNodes.forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          text += child.textContent
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          const varName = child.getAttribute('data-var')
+          if (varName) {
+            const pillValue = normalizeValue(child.getAttribute('data-value'))
+              || normalizeValue(child.getAttribute('data-display'))
+              || normalizeValue(child.textContent)
+            const rendered = pillValue || `<<${varName}>>`
+            text += rendered
+          } else if (child.tagName === 'BR') {
+            text += '\n'
+          } else {
+            text += toPlainText(child)
+          }
+        }
+      })
+
+      return text
+    }
+
+    const fallbackText = toPlainText(tempDiv).replace(/\s+\n/g, '\n').replace(/\n{2,}/g, '\n').trim()
+    return injectVariableValues(fallbackText)
+  }
+
+  // Generate prompts with localized instructions
+  const getPrompts = () => {
+    const plainText = convertPillsToText(emailText)
+    const prompts = {}
+    Object.entries(ACTIONS).forEach(([key, meta]) => {
+      const actionText = t.actions[key]
+      if (!actionText) return
+      prompts[key] = {
+        title: actionText.title,
+        icon: meta.icon,
+        color: meta.color,
+        prompt: `${actionText.prompt}\n\n${plainText}`
+      }
+    })
+    return prompts
+  }
+
+  const copyPromptToClipboard = async (promptKey) => {
     if (!emailText || emailText.trim() === '') {
-      alert('Veuillez d\'abord sélectionner un modèle et saisir du contenu.')
+      alert(t.copyAlertNoContent)
       return
     }
 
-    setIsProcessing(true)
-    setLastAction(action)
+    const prompts = getPrompts()
+    const promptData = prompts[promptKey]
+    try {
+      await navigator.clipboard.writeText(promptData.prompt)
+      setCopiedPrompt(promptKey)
+      setTimeout(() => setCopiedPrompt(null), 2000)
+    } catch (error) {
+      console.error('Erreur de copie:', error)
+      alert(t.copyError)
+    }
+  }
+
+  const copyCustomPrompt = async () => {
+    if (!emailText || emailText.trim() === '') {
+      alert(t.copyAlertNoContent)
+      return
+    }
+
+    const plainText = convertPillsToText(emailText)
+    const instruction = customPrompt.trim() || t.customPromptFallback
+    const payload = `${instruction}\n\n${plainText}`
 
     try {
-      let prompt = ''
-
-      switch (action) {
-        case 'improve':
-          prompt = `Améliore ce texte d'email pour le rendre plus professionnel et engageant tout en préservant exactement toutes les variables (<<...>>) :\n\n${emailText}`
-          break
-        case 'formal':
-          prompt = `Rends ce texte d'email plus formel et professionnel tout en préservant exactement toutes les variables (<<...>>) :\n\n${emailText}`
-          break
-        case 'friendly':
-          prompt = `Rends ce texte d'email plus chaleureux et amical tout en gardant un ton professionnel et en préservant exactement toutes les variables (<<...>>) :\n\n${emailText}`
-          break
-        case 'concise':
-          prompt = `Rends ce texte d'email plus concis et direct tout en préservant exactement toutes les variables (<<...>>) et les informations essentielles :\n\n${emailText}`
-          break
-        case 'grammar':
-          prompt = `Corrige la grammaire, l'orthographe et la ponctuation de ce texte d'email tout en préservant exactement toutes les variables (<<...>>) :\n\n${emailText}`
-          break
-        default:
-          throw new Error('Action AI inconnue')
-      }
-
-  const response = await callOpenAI({ prompt })
-      setResult(response)
+      await navigator.clipboard.writeText(payload)
+      setCustomCopied(true)
+      setTimeout(() => setCustomCopied(false), 2000)
     } catch (error) {
-      console.error('Erreur AI:', error)
-      alert(`Erreur AI: ${error.message}`)
-    } finally {
-      setIsProcessing(false)
+      console.error('Erreur de copie:', error)
+      alert(t.copyError)
     }
   }
 
-  const applyResult = () => {
-    if (result && onResult) {
-      onResult(result)
-      setResult('')
-      setLastAction(null)
-    }
-  }
-
-  const rejectResult = () => {
-    setResult('')
-    setLastAction(null)
-  }
-
-  const saveApiKey = () => {
-    if (tempApiKey.trim()) {
-      setOpenAIKey(tempApiKey.trim())
-      setTempApiKey('')
-      setShowApiKeyInput(false)
-      alert('Clé API sauvegardée ! Vous pouvez maintenant utiliser les fonctionnalités AI.')
+  const openEdgeCopilot = () => {
+    // This will attempt to open Edge Copilot sidebar (works in Edge browser)
+    if (isEdgeDetected) {
+      alert(t.edgeAlert)
+    } else {
+      window.open('https://www.microsoft.com/edge/features/copilot', '_blank')
     }
   }
 
   return (
-    <Card className="h-fit shadow-xl border-0 bg-gradient-to-br from-white to-purple-50 overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50">
-        <CardTitle className="text-xl font-bold text-gray-800 flex items-center">
-          <Sparkles className="h-6 w-6 mr-2 text-purple-600" />
-          Assistant IA
-        </CardTitle>
-        <p className="text-sm text-gray-600">Améliorez vos emails avec l'IA</p>
-      </CardHeader>
-
-      <CardContent className="p-4 space-y-4">
-        {!hasOpenAIKey() ? (
-          <div className="text-center space-y-4">
-            <div className="text-amber-600 mb-4">
-              <Settings className="h-12 w-12 mx-auto mb-2" />
-              <p className="text-sm font-medium">Configuration requise</p>
+    <div className="h-full flex flex-col space-y-3">
+      {/* Header */}
+      <Card className="bg-white/98 border border-slate-100 rounded-lg shadow-sm">
+        <CardHeader className="p-3">
+          <CardTitle className="text-sm font-semibold text-gray-800 flex items-center">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-700 mr-2.5">
+              <Sparkles className="h-4 w-4 text-slate-600" />
             </div>
-            <Button
-              onClick={() => setShowApiKeyInput(true)}
-              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Configurer OpenAI
-            </Button>
+            <div>
+              <div className="leading-tight">{t.headerTitle}</div>
+              <p className="text-xs font-normal text-gray-500 mt-0.5">
+                {t.headerSubtitle}
+              </p>
+            </div>
+          </CardTitle>
+        </CardHeader>
+      </Card>
+
+      {/* Quick Start Guide */}
+      <Card className="bg-white/98 border border-slate-100 rounded-lg shadow-sm">
+        <CardContent className="p-3">
+          <div className="flex items-start space-x-2.5">
+            <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
+              <Lightbulb className="h-3.5 w-3.5 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-xs text-gray-800 mb-1.5 mt-1">{t.quickStartTitle}</h3>
+              <ol className="text-xs text-gray-600 space-y-1">
+                {t.quickStartSteps.map((step, index) => (
+                  <li key={step} className="flex items-start">
+                    <span className="font-semibold text-blue-600 mr-1.5 text-xs">{index + 1}.</span>
+                    <span className="text-xs">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
           </div>
-        ) : (
-          <>
-            {!result ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 gap-2">
-                  <Button
-                    onClick={() => handleAIAction('improve')}
-                    disabled={isProcessing}
-                    className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white text-sm"
-                  >
-                    {isProcessing && lastAction === 'improve' ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Wand2 className="h-4 w-4 mr-2" />
-                    )}
-                    Améliorer
-                  </Button>
 
-                  <Button
-                    onClick={() => handleAIAction('formal')}
-                    disabled={isProcessing}
-                    className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 text-white text-sm"
-                  >
-                    {isProcessing && lastAction === 'formal' ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                    )}
-                    Plus formel
-                  </Button>
+          {isEdgeDetected && (
+            <div className="mt-2.5 p-2 bg-green-50 border border-green-200 rounded-lg flex items-start space-x-2">
+              <CheckCircle className="h-3.5 w-3.5 text-green-600 mt-0.5 flex-shrink-0" />
+              <div className="text-xs text-green-800">{t.edgeDetected}</div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-                  <Button
-                    onClick={() => handleAIAction('friendly')}
-                    disabled={isProcessing}
-                    className="w-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white text-sm"
-                  >
-                    {isProcessing && lastAction === 'friendly' ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4 mr-2" />
-                    )}
-                    Plus amical
-                  </Button>
-
-                  <Button
-                    onClick={() => handleAIAction('concise')}
-                    disabled={isProcessing}
-                    className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white text-sm"
-                  >
-                    {isProcessing && lastAction === 'concise' ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Wand2 className="h-4 w-4 mr-2" />
-                    )}
-                    Plus concis
-                  </Button>
-
-                  <Button
-                    onClick={() => handleAIAction('grammar')}
-                    disabled={isProcessing}
-                    className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white text-sm"
-                  >
-                    {isProcessing && lastAction === 'grammar' ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                    )}
-                    Corriger
-                  </Button>
-                </div>
-
-                {isProcessing && (
-                  <div className="text-center p-4 bg-purple-50 rounded-lg">
-                    <Loader2 className="h-6 w-6 text-purple-600 animate-spin mx-auto mb-2" />
-                    <p className="text-sm text-purple-800 font-medium">
-                      L'IA travaille sur votre texte...
-                    </p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-green-800 mb-2 flex items-center">
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Suggestion IA
-                    {lastAction && (
-                      <span className="ml-2 px-2 py-1 bg-green-200 text-green-800 text-xs rounded-full">
-                        {lastAction}
-                      </span>
-                    )}
-                  </h4>
-                  <div className="bg-white p-3 rounded border text-sm max-h-48 overflow-y-auto">
-                    <pre className="whitespace-pre-wrap font-sans text-gray-800">
-                      {result}
-                    </pre>
-                  </div>
-                </div>
-
-                <div className="flex space-x-2">
-                  <Button
-                    onClick={rejectResult}
-                    variant="outline"
-                    className="flex-1 text-sm"
-                  >
-                    Rejeter
-                  </Button>
-                  <Button
-                    onClick={applyResult}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm"
-                  >
-                    Appliquer
-                  </Button>
-                </div>
-
+      {/* Action Buttons */}
+      <Card className="bg-white/98 border border-slate-100 rounded-lg shadow-sm flex-1 overflow-hidden">
+        <CardContent className="p-3 h-full overflow-y-auto">
+          <h3 className="font-semibold text-xs text-gray-800 mb-2.5 pt-1 flex items-center">
+            <Zap className="h-3.5 w-3.5 mr-1.5 text-slate-600" />
+            {t.actionsTitle}
+          </h3>
+          <div className="grid grid-cols-2 gap-2">
+            {Object.entries(getPrompts()).map(([key, data]) => {
+              const Icon = data.icon
+              const isCopied = copiedPrompt === key
+              return (
                 <Button
-                  onClick={() => handleAIAction(lastAction)}
-                  variant="outline"
-                  className="w-full text-sm"
-                  disabled={isProcessing}
+                  key={key}
+                  onClick={() => copyPromptToClipboard(key)}
+                  className={`h-10 w-full rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 justify-between group hover:bg-slate-50 transition-colors transition-transform transform hover:-translate-y-0.5 hover:shadow-sm`}
+                  disabled={!emailText || emailText.trim() === ''}
                 >
-                  Réessayer
+                  <div className="flex items-center">
+                    <Icon className="h-4 w-4 mr-2 text-slate-500 group-hover:text-slate-700" />
+                    <span>{data.title}</span>
+                  </div>
+                  <div className="flex items-center">
+                    {isCopied ? (
+                      <>
+                        <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                        <span className="text-emerald-600 text-xs ml-2">Copied</span>
+                      </>
+                    ) : (
+                      <Copy className="h-3.5 w-3.5 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    )}
+                  </div>
                 </Button>
-              </div>
-            )}
-          </>
-        )}
-      </CardContent>
-
-      {/* Modal de configuration de la clé API */}
-      {showApiKeyInput && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-md w-full p-6">
-            <div className="text-center mb-6">
-              <div className="text-purple-500 text-5xl mb-4">🔑</div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Configuration OpenAI</h2>
-              <p className="text-gray-600 text-sm">
-                Entrez votre clé API OpenAI pour activer les fonctionnalités d'intelligence artificielle.
-                <br />
-                <span className="text-xs text-gray-500">
-                  Votre clé est stockée localement et n'est jamais envoyée ailleurs.
-                </span>
-              </p>
-            </div>
-
-            <div className="mb-6">
-              <input
-                type="password"
-                id="openai-api-key"
-                name="openai-api-key"
-                value={tempApiKey}
-                onChange={(e) => setTempApiKey(e.target.value)}
-                placeholder="sk-..."
-                className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all duration-200"
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                Obtenez votre clé API sur{' '}
-                <a
-                  href="https://platform.openai.com/api-keys"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-purple-500 hover:underline"
-                >
-                  OpenAI Platform
-                </a>
-              </p>
-            </div>
-
-            <div className="flex space-x-4">
-              <Button
-                onClick={() => {
-                  setShowApiKeyInput(false)
-                  setTempApiKey('')
-                }}
-                variant="outline"
-                className="flex-1"
-              >
-                Annuler
-              </Button>
-              <Button
-                onClick={saveApiKey}
-                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-                disabled={!tempApiKey.trim()}
-              >
-                Sauvegarder
-              </Button>
-            </div>
+              )
+            })}
           </div>
-        </div>
-      )}
-    </Card>
+
+          {(!emailText || emailText.trim() === '') && (
+            <div className="mt-3 p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <Info className="h-3.5 w-3.5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-amber-800">{t.emptyState}</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Custom Prompt */}
+      <Card className="bg-white/98 border border-slate-100 rounded-lg shadow-sm">
+        <CardContent className="p-3 space-y-2.5">
+          <h3 className="font-semibold text-xs text-gray-800 pt-1 flex items-center">
+            <Sparkles className="h-3.5 w-3.5 mr-1.5 text-slate-600" />
+            {t.customPromptTitle}
+          </h3>
+          <Textarea
+            value={customPrompt}
+            onChange={(e) => setCustomPrompt(e.target.value)}
+            placeholder={t.customPromptPlaceholder}
+            className="min-h-[60px] text-xs"
+          />
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <span className="text-xs">{t.customPromptHelper}</span>
+            <span className="text-xs text-gray-400">{customPrompt.length}/280</span>
+          </div>
+          <Button
+            onClick={copyCustomPrompt}
+            disabled={!emailText || emailText.trim() === ''}
+            className="w-full h-9 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs flex items-center justify-center gap-2 transition-transform transform hover:-translate-y-0.5 hover:shadow-sm"
+          >
+            {customCopied ? <CheckCircle className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {t.customPromptButton}
+          </Button>
+        </CardContent>
+      </Card>
+
+
+    </div>
   )
 }
 
