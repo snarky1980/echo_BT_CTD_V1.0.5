@@ -2117,7 +2117,7 @@ function App() {
 
     const fetchTemplatesFromSources = async () => {
       if (debug) console.log('[EA][Debug] Fetching templates (prefer raw main data)...')
-      const REPO_RAW_URL = (import.meta?.env?.VITE_TEMPLATES_URL) || 'https://raw.githubusercontent.com/snarky1980/echo_MT/main/complete_email_templates.json'
+      const REPO_RAW_URL = (import.meta?.env?.VITE_TEMPLATES_URL) || 'https://raw.githubusercontent.com/snarky1980/echo_BT_CTD_V1.0.5/main/complete_email_templates.json'
       const LOCAL_URL = './complete_email_templates.json'
       const BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) ? import.meta.env.BASE_URL : '/'
       const ABSOLUTE_URL = (BASE_URL.endsWith('/') ? BASE_URL : BASE_URL + '/') + 'complete_email_templates.json'

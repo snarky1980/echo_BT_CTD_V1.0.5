@@ -460,7 +460,7 @@
     }
     if (!repoOverride){
       const guessRepo = document.querySelector('meta[name="gh-repo"]')?.content || '';
-      const repoInput = prompt('Owner/Repo pour publication (ex: snarky1980/echo_MT). Laissez vide pour utiliser meta.', guessRepo);
+      const repoInput = prompt('Owner/Repo pour publication (ex: snarky1980/echo_BT_CTD_V1.0.5). Laissez vide pour utiliser meta.', guessRepo);
       if (repoInput && repoInput.trim()) { repoOverride = repoInput.trim(); localStorage.setItem('ea_gh_repo', repoOverride); }
     }
     publishJsonToGitHub(true).catch(err => { console.error('Publish failed, fallback to download', err); exportJson(); });
@@ -476,7 +476,7 @@
     }
     // Derive owner/repo from homepage or location
     const homepage = (data.metadata && data.metadata.homepage) || document.querySelector('meta[name="gh-repo"]')?.content || '';
-    let owner='snarky1980', repo='echo_MT';
+    let owner='snarky1980', repo='echo_BT_CTD_V1.0.5';
     try {
       const m = homepage.match(/github\.io\/([^/]+)\/?/); if (m) repo = m[1];
       const m2 = (document.location.href).match(/https:\/\/([^.]+)\.github\.io\//); if (m2) owner = m2[1];
@@ -511,7 +511,7 @@
   if (btnGithub) btnGithub.onclick = async () => {
     const curRepo = localStorage.getItem('ea_gh_repo') || '';
     const curTok = localStorage.getItem('ea_gh_token') || '';
-    const repo = prompt('Owner/Repo (ex: snarky1980/echo_MT). Laissez vide pour auto-détection.', curRepo);
+    const repo = prompt('Owner/Repo (ex: snarky1980/echo_BT_CTD_V1.0.5). Laissez vide pour auto-détection.', curRepo);
     if (repo !== null) {
       if (repo.trim()) localStorage.setItem('ea_gh_repo', repo.trim()); else localStorage.removeItem('ea_gh_repo');
     }

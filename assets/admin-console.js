@@ -1540,7 +1540,7 @@
   async function githubPublishFlow() {
     try {
       if (!data) { notify('Aucune donnée à publier.', 'warn'); return; }
-      const repo = 'snarky1980/email-assistant-v8-'; // adjust if forked
+      const repo = 'snarky1980/echo_BT_CTD_V1.0.5'; // adjust if forked
       const rootPath = 'complete_email_templates.json';
       const publicPath = 'public/complete_email_templates.json';
       const owner = repo.split('/')[0];
