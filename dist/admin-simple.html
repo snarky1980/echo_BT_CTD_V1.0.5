@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Email Assistant – Console simple</title>
   <!-- meta used for GitHub repo autodetection for JSON publish -->
-  <meta name="gh-repo" content="snarky1980/echo_MT" />
+  <meta name="gh-repo" content="snarky1980/echo_BT_CTD_V1.0.5" />
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" href="/favicon.ico" />
     <style>
@@ -154,12 +154,12 @@
       </main>
     </div>
 
-    <script src="./assets/admin-simple.js?v=1763387986328"></script>
+    <script src="./assets/admin-simple.js?v=1763564709785"></script>
     <script>
       // Lightweight badge population: fetch raw main JSON headers quickly
       (async function(){
         try {
-          const repo = document.querySelector('meta[name="gh-repo"]')?.content || 'snarky1980/echo_MT';
+          const repo = document.querySelector('meta[name="gh-repo"]')?.content || 'snarky1980/echo_BT_CTD_V1.0.5';
           const url = `https://raw.githubusercontent.com/${repo}/main/complete_email_templates.json`;
           const resp = await fetch(url, { cache:'no-store' });
           if(!resp.ok) return;
