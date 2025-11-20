@@ -12,22 +12,27 @@ const ACTIONS = {
   concise: { icon: Zap, color: 'from-slate-500 to-slate-600' },
   grammar: { icon: CheckCircle, color: 'from-amber-600 to-orange-600' },
   translate: { icon: Globe, color: 'from-indigo-600 to-slate-600' },
-  translateToEnglish: { icon: Globe, color: 'from-blue-600 to-slate-600' }
+  translateToEnglish: { icon: Globe, color: 'from-blue-600 to-slate-600' },
+  emphasize: { icon: Sparkles, color: 'from-orange-600 to-red-600' },
+  simplify: { icon: Lightbulb, color: 'from-green-600 to-teal-600' },
+  persuasive: { icon: Zap, color: 'from-purple-600 to-indigo-600' },
+  urgent: { icon: Zap, color: 'from-red-600 to-orange-600' },
+  confident: { icon: Sparkles, color: 'from-blue-600 to-indigo-600' }
 }
 
 const TEXT = {
   fr: {
-    headerTitle: 'Assistant IA M365 Copilot',
-    headerSubtitle: 'Utilisez votre Copilot Microsoft pour améliorer vos emails',
+    headerTitle: 'Assistant de rédaction Copilot M365',
+    headerSubtitle: 'Améliorez votre texte avec Copilot',
     quickStartTitle: 'Comment ça marche ?',
     quickStartSteps: [
-      'Cliquez sur une action ci-dessous pour copier le prompt',
-      'Ouvrez Copilot (Edge, Word ou Outlook)',
-      'Collez le prompt et validez pour obtenir votre version améliorée'
+      'Cliquez sur une action pour copier le prompt',
+      'Ouvrez Copilot dans Edge, Word ou Outlook',
+      'Collez et validez pour voir le résultat'
     ],
-    edgeDetected: 'Edge détecté ! Appuyez sur Ctrl+Shift+. pour ouvrir Copilot',
+    edgeDetected: 'Edge détecté ! Ctrl+Shift+. pour Copilot',
     actionsTitle: 'Actions rapides',
-    emptyState: "Sélectionnez un modèle et ajoutez du contenu pour utiliser l'assistant IA",
+    emptyState: "Sélectionnez un modèle pour utiliser Copilot",
     shortcutsTitle: 'Raccourcis utiles',
     shortcuts: [
       { label: 'Ouvrir Copilot (Edge)', combo: 'Ctrl+Shift+.' },
@@ -40,18 +45,23 @@ const TEXT = {
     copyError: 'Impossible de copier dans le presse-papiers',
     edgeAlert: 'Appuyez sur Ctrl+Shift+. (Cmd+Shift+. sur Mac) pour ouvrir Copilot dans Edge',
     customPromptTitle: 'Instruction personnalisée',
-    customPromptPlaceholder: 'Ajoutez ici une consigne spécifique (ex.: “Réduis à 80 mots en conservant un ton inspirant”).',
-    customPromptHelper: "La consigne sera copiée avec le contenu actuel de l'email.",
+    customPromptPlaceholder: 'Ajoutez ici une consigne spécifique (ex.: "Réduis à 80 mots en conservant un ton inspirant").',
+    customPromptHelper: 'Copiée avec le contenu actuel.',
     customPromptButton: 'Copier avec ma consigne',
     customPromptFallback: 'Améliore ce texte selon la consigne suivante :',
     actions: {
-      improve: { title: 'Améliorer le texte', prompt: "Améliore ce texte pour le rendre plus professionnel et engageant sans modifier les variables existantes :" },
-      formal: { title: 'Rendre formel', prompt: "Rends ce texte plus formel et professionnel tout en conservant les variables :" },
-      friendly: { title: 'Rendre amical', prompt: "Rends ce texte plus chaleureux et amical tout en gardant un ton professionnel :" },
-      concise: { title: 'Rendre concis', prompt: "Rends ce texte plus concis et direct sans perdre d'information :" },
+      improve: { title: 'Améliorer', prompt: "Améliore ce texte pour le rendre plus professionnel et engageant sans modifier les variables existantes :" },
+      formal: { title: 'Formel', prompt: "Rends ce texte plus formel et professionnel tout en conservant les variables :" },
+      friendly: { title: 'Amical', prompt: "Rends ce texte plus chaleureux et amical tout en gardant un ton professionnel :" },
+      concise: { title: 'Concis', prompt: "Rends ce texte plus concis et direct sans perdre d'information :" },
       grammar: { title: 'Corriger', prompt: "Corrige la grammaire, l'orthographe et la ponctuation sans modifier les variables :" },
-      translate: { title: 'Traduire EN→FR', prompt: "Traduis ce texte de l'anglais vers le français en gardant un ton professionnel :" },
-      translateToEnglish: { title: 'Traduire FR→EN', prompt: "Traduis ce texte du français vers l'anglais en gardant un ton professionnel :" }
+      translate: { title: 'EN→FR', prompt: "Traduis ce texte de l'anglais vers le français en gardant un ton professionnel :" },
+      translateToEnglish: { title: 'FR→EN', prompt: "Traduis ce texte du français vers l'anglais en gardant un ton professionnel :" },
+      emphasize: { title: 'Emphase', prompt: "Réécris ce texte pour mettre en valeur les points clés de façon plus percutante :" },
+      simplify: { title: 'Simplifier', prompt: "Simplifie ce texte pour le rendre plus clair et accessible :" },
+      persuasive: { title: 'Persuasif', prompt: "Réécris ce texte pour le rendre plus convaincant et persuasif :" },
+      urgent: { title: 'Urgent', prompt: "Réécris ce texte avec un ton urgent pour inciter à l'action :" },
+      confident: { title: 'Confiant', prompt: "Réécris ce texte avec un ton plus confiant et assuré :" }
     }
   },
   en: {
@@ -65,7 +75,7 @@ const TEXT = {
     ],
     edgeDetected: 'Edge detected! Press Ctrl+Shift+. to open Copilot',
     actionsTitle: 'Quick actions',
-    emptyState: 'Select a template and add content before using the AI assistant',
+    emptyState: 'Select a template and add content before using the Copilot assistant',
     shortcutsTitle: 'Helpful shortcuts',
     shortcuts: [
       { label: 'Open Copilot (Edge)', combo: 'Ctrl+Shift+.' },
@@ -89,7 +99,12 @@ const TEXT = {
       concise: { title: 'Make it concise', prompt: 'Tighten this email so it stays concise and to the point without losing key details:' },
       grammar: { title: 'Fix grammar', prompt: 'Fix grammar, spelling, and punctuation while leaving placeholders untouched:' },
       translate: { title: 'Translate EN→FR', prompt: 'Translate this English email into French with a professional tone:' },
-      translateToEnglish: { title: 'Translate FR→EN', prompt: 'Translate this French email into English with a professional tone:' }
+      translateToEnglish: { title: 'Translate FR→EN', prompt: 'Translate this French email into English with a professional tone:' },
+      emphasize: { title: 'Emphasize key points', prompt: 'Rewrite this email to emphasize key points more powerfully:' },
+      simplify: { title: 'Simplify', prompt: 'Simplify this email to make it clearer and easier to understand:' },
+      persuasive: { title: 'Make it persuasive', prompt: 'Rewrite this email to be more convincing and persuasive:' },
+      urgent: { title: 'Urgent tone', prompt: 'Rewrite this email with an urgent tone to encourage action:' },
+      confident: { title: 'Confident tone', prompt: 'Rewrite this email with a more confident and assertive tone:' }
     }
   }
 }
@@ -285,13 +300,13 @@ const AISidebar = ({ emailText, onResult, variables, interfaceLanguage = 'fr' })
 
       {/* Quick Start Guide */}
       <Card className="bg-white/98 border border-slate-100 rounded-lg shadow-sm">
-        <CardContent className="p-3">
+        <CardContent className="p-3 flex items-center">
           <div className="flex items-start space-x-2.5">
-            <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
+            <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center mt-3">
               <Lightbulb className="h-3.5 w-3.5 text-blue-600" />
             </div>
             <div>
-              <h3 className="font-semibold text-xs text-gray-800 mb-1.5 mt-1">{t.quickStartTitle}</h3>
+              <h3 className="font-semibold text-xs text-gray-800 mb-1.5 mt-3">{t.quickStartTitle}</h3>
               <ol className="text-xs text-gray-600 space-y-1">
                 {t.quickStartSteps.map((step, index) => (
                   <li key={step} className="flex items-start">
@@ -315,7 +330,7 @@ const AISidebar = ({ emailText, onResult, variables, interfaceLanguage = 'fr' })
       {/* Action Buttons */}
       <Card className="bg-white/98 border border-slate-100 rounded-lg shadow-sm flex-1 overflow-hidden">
         <CardContent className="p-3 h-full overflow-y-auto">
-          <h3 className="font-semibold text-xs text-gray-800 mb-2.5 pt-1 flex items-center">
+          <h3 className="font-semibold text-xs text-gray-800 mb-2.5 pt-2 flex items-center">
             <Zap className="h-3.5 w-3.5 mr-1.5 text-slate-600" />
             {t.actionsTitle}
           </h3>
@@ -327,14 +342,14 @@ const AISidebar = ({ emailText, onResult, variables, interfaceLanguage = 'fr' })
                 <Button
                   key={key}
                   onClick={() => copyPromptToClipboard(key)}
-                  className={`h-10 w-full rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 justify-between group hover:bg-slate-50 transition-colors transition-transform transform hover:-translate-y-0.5 hover:shadow-sm`}
+                  className={`h-10 w-full rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 justify-center group hover:bg-slate-50 transition-colors transition-transform transform hover:-translate-y-0.5 hover:shadow-sm`}
                   disabled={!emailText || emailText.trim() === ''}
                 >
                   <div className="flex items-center">
                     <Icon className="h-4 w-4 mr-2 text-slate-500 group-hover:text-slate-700" />
                     <span>{data.title}</span>
                   </div>
-                  <div className="flex items-center">
+                  <div className="flex items-center absolute right-2">
                     {isCopied ? (
                       <>
                         <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
@@ -363,7 +378,7 @@ const AISidebar = ({ emailText, onResult, variables, interfaceLanguage = 'fr' })
       {/* Custom Prompt */}
       <Card className="bg-white/98 border border-slate-100 rounded-lg shadow-sm">
         <CardContent className="p-3 space-y-2.5">
-          <h3 className="font-semibold text-xs text-gray-800 pt-1 flex items-center">
+          <h3 className="font-semibold text-xs text-gray-800 pt-2 flex items-center">
             <Sparkles className="h-3.5 w-3.5 mr-1.5 text-slate-600" />
             {t.customPromptTitle}
           </h3>
@@ -371,7 +386,7 @@ const AISidebar = ({ emailText, onResult, variables, interfaceLanguage = 'fr' })
             value={customPrompt}
             onChange={(e) => setCustomPrompt(e.target.value)}
             placeholder={t.customPromptPlaceholder}
-            className="min-h-[60px] text-xs"
+            className="min-h-[50px] text-xs resize-none"
           />
           <div className="flex items-center justify-between text-xs text-gray-500">
             <span className="text-xs">{t.customPromptHelper}</span>

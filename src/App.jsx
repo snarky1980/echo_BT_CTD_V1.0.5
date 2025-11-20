@@ -4250,16 +4250,17 @@ ${cleanBodyHtml}
                             
                           </>
 	                      )}
-                        {/* IA trigger: opens hidden AI panel - Sage accent */}
+                        {/* Copilot trigger: opens hidden AI panel - Sage accent */}
                         <Button
                           onClick={() => setShowAIPanel(true)}
                           size="sm"
                           variant="outline"
                           className="shadow-soft"
                           style={{ background: '#fff', color: '#2c3d50', borderColor: 'rgba(44, 61, 80, 0.35)' }}
-                          title="Ouvrir les fonctions IA"
+                          title="Ouvrir l'assistant Copilot"
                         >
-                          IA
+                          <Sparkles className="h-4 w-4 mr-1.5" />
+                          Copilot
                         </Button>
                         {/* Outlook button moved below editor */}
 	                    </div>
@@ -5051,7 +5052,7 @@ ${cleanBodyHtml}
             <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-200">
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 animate-pulse"></div>
-                <span className="font-semibold text-gray-800">Assistant IA M365</span>
+                <span className="font-semibold text-gray-800">Assistant de rédaction Copilot M365</span>
               </div>
               <button 
                 className="text-gray-400 hover:text-gray-600 hover:bg-gray-200 w-8 h-8 rounded-full flex items-center justify-center transition-all" 

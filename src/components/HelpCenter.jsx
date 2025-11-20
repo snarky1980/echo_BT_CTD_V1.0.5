@@ -21,12 +21,22 @@ const translations = {
       ]
     },
     sections: {
+      copilot: {
+        heading: 'Assistant Copilot M365',
+        points: [
+          'L\'assistant Copilot vous aide à améliorer vos courriels avec 12 actions rapides : améliorer, formaliser, simplifier, corriger, traduire, etc.',
+          'Cliquez sur une action pour copier le prompt avec le contenu de votre email, puis collez dans Copilot (Edge, Word ou Outlook).',
+          'Les variables sont préservées automatiquement : Copilot voit les valeurs réelles, pas les noms de variables.',
+          'Utilisez l\'instruction personnalisée pour des demandes spécifiques (ex.: "Réduis à 80 mots avec un ton inspirant").'
+        ]
+      },
       variables: {
         heading: 'Variables & pastilles',
         points: [
-          'Les variables apparaissent comme des pastilles dans l\'Objet et le Corps. Cliquez dessus ou tapez pour les modifier.',
-          'Les pastilles montrent la valeur en temps réel. Vous ne devriez pas voir «<>» : si c\'est le cas, vérifiez que la variable existe et n\'a pas été supprimée.',
-          'Utilisez le panneau Variables pour voir et éditer toutes les valeurs d\'un coup; la synchronisation est bidirectionnelle.'
+          'Les variables apparaissent comme des pastilles colorées dans l\'Objet et le Corps. Cliquez dessus pour les modifier directement.',
+          'Les pastilles montrent la valeur en temps réel avec le nom de la variable. Le système extrait automatiquement les valeurs lors du copier-coller.',
+          'Utilisez le panneau Variables pour voir et éditer toutes les valeurs d\'un coup; la synchronisation est bidirectionnelle et instantanée.',
+          'Les variables sont préservées lors de l\'utilisation de l\'assistant Copilot et apparaissent avec leurs valeurs réelles dans les prompts.'
         ]
       },
       popout: {
@@ -43,7 +53,8 @@ const translations = {
           'Les boutons Copier Objet / Copier Corps / Copier Tout incluent vos valeurs actuelles et le formatage riche (gras, surlignage, etc.).',
           'Le bouton « Ouvrir dans un courriel » génère un lien mailto qui ouvre votre client de messagerie par défaut (Outlook, Gmail, etc.) et insère automatiquement l\'objet et le corps en texte brut.',
           'Important : Le formatage riche est perdu avec le bouton mailto. Pour conserver le gras, les couleurs et le surlignage, utilisez « Copier Tout » puis collez dans votre client préféré.',
-          'Le lien direct (icône de lien) inclut l\'identifiant et la langue dans l\'URL pour partager le modèle avec des collègues.'
+          'Le lien direct (icône de lien) inclut l\'identifiant et la langue dans l\'URL pour partager le modèle avec des collègues.',
+          'Les actions Copilot copient automatiquement le prompt complet avec les valeurs des variables injectées pour une utilisation immédiate dans Copilot.'
         ]
       },
       favorites: {
@@ -199,12 +210,22 @@ const translations = {
       ]
     },
     sections: {
+      copilot: {
+        heading: 'M365 Copilot Assistant',
+        points: [
+          'The Copilot Assistant helps enhance your emails with 12 quick actions: improve, formalize, simplify, fix grammar, translate, and more.',
+          'Click an action to copy the prompt with your email content, then paste into Copilot (Edge, Word, or Outlook).',
+          'Variables are preserved automatically: Copilot sees the actual values, not variable names.',
+          'Use the custom instruction field for specific requests (e.g., "Rewrite in 80 words with a confident tone").'
+        ]
+      },
       variables: {
         heading: 'Variables & pills',
         points: [
-          'Variables render as pills inside Subject and Body. Click or type to change values.',
-          'Pills show live values. You should not see "<>"; if you do, ensure the variable exists and wasn\'t removed.',
-          'Use the Variables panel to view/edit all values at once; syncing is bidirectional.'
+          'Variables appear as colored pills in Subject and Body. Click them to edit values directly.',
+          'Pills display real-time values with variable names. The system automatically extracts values during copy operations.',
+          'Use the Variables panel to view/edit all values at once; syncing is bidirectional and instantaneous.',
+          'Variables are preserved when using the Copilot Assistant and appear with their actual values in prompts.'
         ]
       },
       popout: {
@@ -221,7 +242,8 @@ const translations = {
           'Copy Subject / Copy Body / Copy All buttons include your current values and preserve rich formatting (bold, highlights, etc.).',
           'The "Open in an email" button generates a mailto link that opens your default email client (Outlook, Gmail, etc.) and pre-fills the subject and body with plain text.',
           'Important: Rich formatting is lost when using the mailto button. To preserve bold, colors, and highlights, use "Copy All" and paste into your preferred client.',
-          'The direct-link icon includes id & language in the URL to share the template with colleagues.'
+          'The direct-link icon includes id & language in the URL to share the template with colleagues.',
+          'Copilot actions automatically copy the complete prompt with injected variable values for immediate use in Copilot.'
         ]
       },
       favorites: {
@@ -675,6 +697,9 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'j
               <div className="flex flex-col gap-3 rounded-xl border border-[#e6eef5] bg-white/70 p-3 md:flex-row md:items-center md:justify-between">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-700">
                   <a href="#quickstart" className="rounded-full bg-[#f0fbfb] px-3 py-1 font-semibold text-[#145a64] hover:underline">{strings.quickStart.heading}</a>
+                  {strings.sections?.copilot ? (
+                    <a href="#copilot" className="rounded-full bg-[#f0fbfb] px-3 py-1 font-semibold text-[#145a64] hover:underline">{strings.sections.copilot.heading}</a>
+                  ) : null}
                   {strings.sections?.variables ? (
                     <a href="#variables" className="rounded-full bg-[#f0fbfb] px-3 py-1 font-semibold text-[#145a64] hover:underline">{strings.sections.variables.heading}</a>
                   ) : null}
@@ -717,6 +742,21 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'j
                   ))}
                 </ul>
               </section>
+              {strings.sections?.copilot ? (
+                <section id="copilot">
+                  <SectionHeader icon={Sparkles} title={strings.sections.copilot.heading} />
+                  <ul className="mt-4 space-y-2 text-sm text-slate-700">
+                    {(strings.sections.copilot.points || [])
+                      .filter((p) => !query || p.toLowerCase().includes(query.toLowerCase()))
+                      .map((p, i) => (
+                        <li key={i} className="flex gap-3">
+                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[#1f8a99]" aria-hidden="true" />
+                          <span>{p}</span>
+                        </li>
+                      ))}
+                  </ul>
+                </section>
+              ) : null}
               {strings.sections?.variables ? (
                 <section id="variables">
                   <SectionHeader icon={BookOpen} title={strings.sections.variables.heading} />
