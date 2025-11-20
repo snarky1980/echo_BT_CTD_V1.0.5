@@ -38,8 +38,10 @@ const ALIASES = new Map([
   // bodies
   ['body fr','body_fr'], ['corps fr','body_fr'], ['body_fr','body_fr'], ['corps_fr','body_fr'],
   ['body en','body_en'], ['corps en','body_en'], ['body_en','body_en'], ['corps_en','body_en'],
+  ['template fr','body_fr'], ['template_fr','body_fr'],
+  ['template en','body_en'], ['template_en','body_en'],
   // variables list
-  ['variables','variables'], ['vars','variables']
+  ['variables','variables'], ['vars','variables'], ['variables description en','variables'], ['variables description fr','variables']
 ]);
 
 function norm(s) { return String(s || '').trim().toLowerCase().replace(/[_.:]/g, ' ').replace(/\s+/g, ' '); }
