@@ -1,7 +1,7 @@
 /* eslint-disable no-console, no-prototype-builtins, no-unreachable, no-undef, no-empty */
 /* DEPLOY: 2025-10-15 07:40 - FIXED: Function hoisting error resolved */
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { normalizeVarKey } from './utils/variables'
+import { normalizeVarKey, resolveVariableValue } from './utils/variables'
 import canonicalTemplatesRaw from '../complete_email_templates.json'
 import { createPortal } from 'react-dom'
 import Fuse from 'fuse.js'
@@ -968,21 +968,12 @@ const interfaceTexts = {
   searchPlaceholder: 'Rechercher un modèle...',
     allCategories: 'Toutes les catégories',
     categories: {
-      Annulations: 'Annulations',
-      Assurance: 'Assurance',
-      'Avis de voyage': 'Avis de voyage',
-      'Demande générale': 'Demande générale',
-      Devis: 'Devis',
-      'Itinéraire': 'Itinéraire',
-      'Marketing & promotions': 'Marketing & promotions',
-      Paiements: 'Paiements',
-      Plaintes: 'Plaintes',
-      'Réservation': 'Réservation',
-      'Suivi post-voyage': 'Suivi post-voyage',
-      'Urgence': 'Urgence',
-      'Visa & documentation': 'Visa & documentation',
-      "Voyages d'affaires": "Voyages d'affaires",
-      'Voyages de groupe': 'Voyages de groupe'
+      clarifications_and_client_instructions: 'Précisions et instructions client',
+      deadlines_and_delivery: 'Délais et livraisons',
+      documents_and_formatting: 'Documents et formats',
+      follow_ups_and_cancellations: 'Suivi et annulations',
+      quotes_and_approvals: 'Devis et approbations',
+      security_and_copyright: 'Sécurité et droits d\'auteur'
     },
     templateLanguage: 'Langue du modèle',
     interfaceLanguage: 'Langue de l\'interface',
@@ -1019,21 +1010,12 @@ const interfaceTexts = {
   searchPlaceholder: 'Search for a template...',
     allCategories: 'All categories',
     categories: {
-      Annulations: 'Cancellations',
-      Assurance: 'Insurance',
-      'Avis de voyage': 'Travel advisories',
-      'Demande générale': 'General inquiries',
-      Devis: 'Quotes',
-      'Itinéraire': 'Itinerary',
-      'Marketing & promotions': 'Marketing & promotions',
-      Paiements: 'Payments',
-      Plaintes: 'Complaints',
-      'Réservation': 'Reservation',
-      'Suivi post-voyage': 'Post-trip follow-up',
-      'Urgence': 'Emergency',
-      'Visa & documentation': 'Visa & documentation',
-      "Voyages d'affaires": 'Business travel',
-      'Voyages de groupe': 'Group travel'
+      clarifications_and_client_instructions: 'Clarifications and client instructions',
+      deadlines_and_delivery: 'Deadlines and delivery',
+      documents_and_formatting: 'Documents and formatting',
+      follow_ups_and_cancellations: 'Follow-ups and cancellations',
+      quotes_and_approvals: 'Quotes and approvals',
+      security_and_copyright: 'Security and copyright'
     },
     templateLanguage: 'Template language',
     interfaceLanguage: 'Interface language',
@@ -2594,17 +2576,60 @@ function App() {
     return <>{parts}</>
   }
 
-  // Get unique categories
+  const categoryLabels = useMemo(() => {
+    if (!templatesData) return {}
+    const labels = { ...(templatesData.metadata?.categoryLabels || {}) }
+    ;(templatesData.templates || []).forEach(t => {
+      const key = t?.category
+      if (!key) return
+      if (!labels[key]) labels[key] = { fr: '', en: '' }
+      if (t.category_fr && !labels[key].fr) labels[key].fr = t.category_fr
+      if (t.category_en && !labels[key].en) labels[key].en = t.category_en
+    })
+    return labels
+  }, [templatesData])
+
+  // Get categories from metadata first, fallback to deriving from templates
   const categories = useMemo(() => {
     if (!templatesData) return []
-    const cats = [...new Set(templatesData.templates.map(t => t.category))]
-    return cats
+    const metaCats = templatesData?.metadata?.categories
+    return Array.isArray(metaCats) && metaCats.length
+      ? metaCats
+      : [...new Set((templatesData.templates || []).map(t => t.category).filter(Boolean))]
   }, [templatesData])
+
+  const getCategoryLabel = useCallback((categoryKey) => {
+    if (!categoryKey) {
+      return interfaceLanguage === 'fr' ? 'Autre' : 'Other'
+    }
+    const labels = categoryLabels[categoryKey]
+    if (labels) {
+      const primary = interfaceLanguage === 'fr' ? labels.fr : labels.en
+      if (primary && primary.trim().length > 0) return primary
+      const fallback = interfaceLanguage === 'fr' ? labels.en : labels.fr
+      if (fallback && fallback.trim().length > 0) return fallback
+    }
+    // Fallback to slug-based key or the key itself
+    const fallbackText = (interfaceTexts?.[interfaceLanguage]?.categories?.[categoryKey]) || categoryKey
+    if (debug && !labels) {
+      console.log(`Category label not found for: ${categoryKey}, using fallback: ${fallbackText}`)
+    }
+    return fallbackText
+  }, [categoryLabels, interfaceLanguage, debug])
 
   const isFav = (id) => favorites.includes(id)
   const toggleFav = (id) => {
     setFavorites(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
+
+  const orderedCategories = useMemo(() => {
+    if (!categories || !categories.length) return []
+    return [...categories].sort((a, b) => {
+      const labelA = getCategoryLabel(a) || a
+      const labelB = getCategoryLabel(b) || b
+      return labelA.localeCompare(labelB, interfaceLanguage === 'fr' ? 'fr' : 'en', { sensitivity: 'base' })
+    })
+  }, [categories, getCategoryLabel, interfaceLanguage])
 
   const replaceVariablesWithValues = (text, values) => {
     if (!text) return ''
@@ -3881,15 +3906,17 @@ ${cleanBodyHtml}
                     style={{ color: 'white', fontSize: selectedCategory === 'all' ? '1rem' : '0.875rem' }}
                   >
                     <Filter className="h-4 w-4 mr-2 text-white" />
-                    <SelectValue placeholder={t.allCategories} />
+                    <span>{selectedCategory === 'all' ? t.allCategories : getCategoryLabel(selectedCategory)}</span>
                   </SelectTrigger>
                   <SelectContent className="bg-white border border-[#2c3d50] rounded-[14px] shadow-xl text-[#2c3d50]">
                     <SelectItem value="all" className="font-semibold" style={{ fontSize: '1rem' }}>{t.allCategories}</SelectItem>
-                    {categories.map(category => (
-                      <SelectItem key={category} value={category}>
-                        {t.categories[category] || category}
-                      </SelectItem>
-                    ))}
+                    {orderedCategories
+                      .filter(category => typeof category === 'string' && category.trim().length > 0)
+                      .map(category => (
+                        <SelectItem key={category} value={category}>
+                          {getCategoryLabel(category)}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -3976,7 +4003,7 @@ ${cleanBodyHtml}
                   <div className="space-y-3">
                     {filteredTemplates.slice(start, end).map((template) => {
                       const badgeStyle = getCategoryBadgeStyle(template.category, templatesData?.metadata?.categoryColors || {})
-                      const badgeLabel = t.categories?.[template.category] || template.category
+                      const badgeLabel = getCategoryLabel(template.category)
                       return (
                         <div
                           key={template.id}
@@ -4092,15 +4119,17 @@ ${cleanBodyHtml}
                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                   <SelectTrigger className={`w-full h-12 border transition-all duration-200 rounded-md ${selectedCategory === 'all' ? 'font-semibold' : ''}`} style={{ background: '#b5af70', borderColor: '#b5af70', color: 'white', fontSize: selectedCategory === 'all' ? '1rem' : '0.875rem' }}>
                     <Filter className="h-4 w-4 mr-2 text-white" />
-                    <SelectValue placeholder={t.allCategories} />
+                    <span>{selectedCategory === 'all' ? t.allCategories : getCategoryLabel(selectedCategory)}</span>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all" className="font-semibold" style={{ fontSize: '1rem' }}>{t.allCategories}</SelectItem>
-                    {categories.map(category => (
-                      <SelectItem key={category} value={category}>
-                        {t.categories[category] || category}
-                      </SelectItem>
-                    ))}
+                    {orderedCategories
+                      .filter(category => typeof category === 'string' && category.trim().length > 0)
+                      .map(category => (
+                        <SelectItem key={category} value={category}>
+                          {getCategoryLabel(category)}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -4121,7 +4150,7 @@ ${cleanBodyHtml}
               <div className="mt-3 space-y-3">
                 {filteredTemplates.slice(0, 80).map((template) => {
                   const badgeStyle = getCategoryBadgeStyle(template.category, templatesData?.metadata?.categoryColors || {})
-                  const badgeLabel = t.categories?.[template.category] || template.category
+                  const badgeLabel = getCategoryLabel(template.category)
                   return (
                     <div key={template.id} onClick={() => { setSelectedTemplate(template); setShowMobileTemplates(false) }} className="w-full p-4 border border-[#e1eaf2] bg-white rounded-[14px]">
                       <div className="flex items-start justify-between">
@@ -4805,17 +4834,7 @@ ${cleanBodyHtml}
                   const varInfo = templatesData?.variables?.[varName]
                   if (!varInfo) return null
                   
-                  const getVarValue = (name = '') => {
-                    const lang = (templateLanguage || 'fr').toLowerCase()
-                    const suffix = name.match(/_(fr|en)$/i)?.[1]?.toLowerCase()
-                    if (suffix) {
-                      return variables?.[name] ?? ''
-                    }
-                    if (lang === 'en') {
-                      return variables?.[`${name}_EN`] ?? variables?.[name] ?? ''
-                    }
-                    return variables?.[`${name}_FR`] ?? variables?.[name] ?? ''
-                  }
+                  const getVarValue = (name = '') => resolveVariableValue(variables, name, templateLanguage)
 
                   const currentValue = getVarValue(varName)
                   const sanitizedVarId = `var-${varName.replace(/[^a-z0-9_-]/gi, '-')}`

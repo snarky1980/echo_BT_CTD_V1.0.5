@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Edit3, X, RotateCcw, Pin, PinOff } from 'lucide-react'
-import { normalizeVarKey, varKeysMatch } from './utils/variables'
+import { normalizeVarKey, varKeysMatch, resolveVariableValue } from './utils/variables'
 
 const LANGUAGE_SUFFIXES = ['FR', 'EN']
 
@@ -143,15 +143,7 @@ export default function VariablesPopout({
   }, [activeLanguageCode])
 
   const getVarValue = useCallback((name = '') => {
-    const lang = (templateLanguage || 'fr').toLowerCase()
-    const suffix = name.match(/_(fr|en)$/i)?.[1]?.toLowerCase()
-    if (suffix) {
-      return variables?.[name] ?? ''
-    }
-    if (lang === 'en') {
-      return variables?.[`${name}_EN`] ?? variables?.[name] ?? ''
-    }
-    return variables?.[`${name}_FR`] ?? variables?.[name] ?? ''
+    return resolveVariableValue(variables, name, templateLanguage)
   }, [variables, templateLanguage])
   const [isPinned, setIsPinned] = useState(() => {
     try {

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { varKeysMatch } from '../utils/variables';
+import { varKeysMatch, resolveVariableValue } from '../utils/variables';
 import RichTextToolbar from './RichTextToolbar.jsx';
 
 const escapeHtml = (input = '') =>
@@ -210,16 +210,8 @@ const RichTextPillEditor = React.forwardRef(({
 
   // Resolve variable value by language preference
   const getVarValue = useCallback((name = '') => {
-    const lang = (templateLanguage || 'fr').toLowerCase()
-    const suffix = name.match(/_(fr|en)$/i)?.[1]?.toLowerCase()
-    if (suffix) {
-      return variables?.[name] ?? ''
-    }
-    if (lang === 'en') {
-      return variables?.[`${name}_EN`] ?? variables?.[name] ?? ''
-    }
-    return variables?.[`${name}_FR`] ?? variables?.[name] ?? ''
-  }, [variables, templateLanguage])
+    return resolveVariableValue(variables, name, templateLanguage);
+  }, [variables, templateLanguage]);
 
   // Render content with pills - IDENTICAL to SimplePillEditor
   const renderContent = (text) => {
@@ -684,6 +676,30 @@ const RichTextPillEditor = React.forwardRef(({
   useEffect(() => {
     applyFocusedPill(focusedVarName);
   }, [focusedVarName, variables, applyFocusedPill]);
+
+  // Update pill display values when variables change, even when focused
+  useEffect(() => {
+    if (!editorRef.current) return;
+    const pills = editorRef.current.querySelectorAll('.var-pill');
+    pills.forEach((pill) => {
+      const varName = pill.getAttribute('data-var');
+      if (!varName) return;
+      const varValue = getVarValue(varName);
+      const isFilled = varValue.trim().length > 0;
+      const displayValue = isFilled ? varValue : `<<${varName}>>`;
+      
+      // Only update if the pill content doesn't match the expected display value
+      const currentText = (pill.textContent || '').trim();
+      const expectedText = displayValue.trim();
+      if (currentText !== expectedText) {
+        const newHtml = convertPlainTextToHtml(displayValue);
+        applyTemplateToPill(pill, newHtml);
+        pill.classList.toggle('filled', isFilled);
+        pill.classList.toggle('empty', !isFilled);
+        pill.setAttribute('data-display', isFilled ? varValue : '');
+      }
+    });
+  }, [variables, getVarValue]);
 
   // Selection change handler - IDENTICAL to SimplePillEditor
   useEffect(() => {

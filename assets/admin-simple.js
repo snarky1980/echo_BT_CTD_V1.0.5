@@ -50,6 +50,7 @@
     obj = obj && typeof obj==='object' ? obj : {};
     obj.metadata = obj.metadata || { version:'1.0', totalTemplates:0, languages:['fr','en'], categories:[] };
     obj.metadata.categoryColors = obj.metadata.categoryColors || {};
+    obj.metadata.categoryLabels = obj.metadata.categoryLabels || {};
     obj.variables = obj.variables || {};
     obj.templates = Array.isArray(obj.templates) ? obj.templates : [];
     return obj;
@@ -91,19 +92,28 @@
       });
       data.variables = lib;
     } catch {}
-    // Prefill category_fr/category_en from legacy category if missing
+    const categoryLabels = data.metadata.categoryLabels || {};
     (data.templates||[]).forEach(t => {
-      if (t.category && !t.category_fr && !t.category_en){
-        t.category_fr = t.category_fr || t.category;
-        t.category_en = t.category_en || t.category;
+      const legacyValue = String(t.category || '').trim();
+      if (!t.category_fr && !t.category_en && legacyValue){
+        t.category_fr = legacyValue;
+        t.category_en = legacyValue;
       } else {
-        // If only one side provided, copy to the other for initial visibility
         if (!t.category_fr && t.category_en) t.category_fr = t.category_en;
         if (!t.category_en && t.category_fr) t.category_en = t.category_fr;
       }
-      // keep legacy fallback field updated
-      t.category = t.category_fr || t.category_en || t.category || '';
+      const key = deriveCategoryKey(legacyValue, t.category_en, t.category_fr);
+      if (key){
+        t.category = key;
+        if (!categoryLabels[key]) categoryLabels[key] = { fr:'', en:'' };
+        if (t.category_fr && !categoryLabels[key].fr) categoryLabels[key].fr = t.category_fr;
+        if (t.category_en && !categoryLabels[key].en) categoryLabels[key].en = t.category_en;
+      } else {
+        t.category = '';
+      }
     });
+    data.metadata.categoryLabels = categoryLabels;
+    data.metadata.categories = Array.from(new Set((data.templates||[]).map(t=>t.category).filter(Boolean))).sort();
     data.metadata.totalTemplates = data.templates.length;
     if (!selected && data.templates.length) selected = data.templates[0].id;
     renderList(); renderEditor();
@@ -111,6 +121,38 @@
   function syncLangButtons(){ /* no-op: both languages are shown */ }
   function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
   function sanitizeId(s){ const v=String(s||'').trim(); if (!v) return ''; return v.replace(/[^A-Za-z0-9_]+/g,'_'); }
+  function stripDiacritics(value=''){ return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+  function toSnakeCase(value=''){
+    const source = stripDiacritics(value)
+      .replace(/([a-z0-9])([A-Z])/g,'$1_$2')
+      .replace(/[-\s]+/g,'_')
+      .replace(/[^A-Za-z0-9_]/g,'_')
+      .replace(/_+/g,'_')
+      .replace(/^_+|_+$/g,'');
+    return source.toLowerCase();
+  }
+  function deriveCategoryKey(current='', labelEn='', labelFr=''){
+    const candidates = [current, labelEn, labelFr]
+      .map(v => String(v||'').trim())
+      .filter(Boolean);
+    if (!candidates.length) return '';
+    for (const candidate of candidates){
+      if (/^[a-z0-9_]+$/.test(candidate) && candidate === candidate.toLowerCase()) return candidate;
+    }
+    return toSnakeCase(candidates[0]);
+  }
+  function syncTemplateCategory(t){
+    if (!t) return;
+    const key = deriveCategoryKey(t.category, t.category_en, t.category_fr);
+    t.category = key;
+    const labels = data.metadata.categoryLabels || (data.metadata.categoryLabels = {});
+    if (key){
+      if (!labels[key]) labels[key] = { fr:'', en:'' };
+      if (t.category_fr) labels[key].fr = t.category_fr;
+      if (t.category_en) labels[key].en = t.category_en;
+    }
+    data.metadata.categories = Array.from(new Set((data.templates||[]).map(item => item.category).filter(Boolean))).sort();
+  }
   function detectPlaceholders(t){
     const parts=[];
     if (t.subject?.fr) parts.push(t.subject.fr);
@@ -195,10 +237,20 @@
     });
     return { map, issues:[] };
   }
-  function buildFromObjects(objs){ const templates=[]; const variables={}; const taken=new Set((data.templates||[]).map(t=>t.id.toLowerCase())); for (const row of objs){ const rawId = String(row.id||'').trim(); if (!rawId) continue; let id = idSanitize(rawId)||'modele'; if (taken.has(id.toLowerCase())){ id = uniqueId(id); }
+  function buildFromObjects(objs){
+    const templates=[];
+    const variables={};
+    const categoryLabels={};
+    const taken=new Set((data.templates||[]).map(t=>String(t.id||'').toLowerCase()));
+    for (const row of objs){
+      const rawId = String(row.id||'').trim();
+      if (!rawId) continue;
+      let id = idSanitize(rawId)||'modele';
+      if (taken.has(id.toLowerCase())) id = uniqueId(id);
       taken.add(id.toLowerCase());
-  const category_fr = String(row.category_fr||'').trim();
-  const category_en = String(row.category_en||'').trim();
+
+      const category_fr = String(row.category_fr||'').trim();
+      const category_en = String(row.category_en||'').trim();
       const title_fr = String(row.title_fr||'').trim();
       const title_en = String(row.title_en||'').trim();
       const description_fr = String(row.description_fr||'').trim();
@@ -207,18 +259,29 @@
       const template_en = String(row.template_en||'').trim();
       const variablesDescFrRaw = row.variables_description_fr || '';
       const variablesDescEnRaw = row.variables_description_en || '';
-  const category = category_fr || category_en || '';
-  const { map: varDescEn } = parseVariableDescriptionEntries(variablesDescEnRaw);
-  const { map: varDescFr } = parseVariableDescriptionEntries(variablesDescFrRaw);
-  const varsFrSet = new Set(extractPlaceholders(template_fr).map(n=>canonicalVar(stripLangSuffix(n))).filter(Boolean));
-  const varsEnSet = new Set(extractPlaceholders(template_en).map(n=>canonicalVar(stripLangSuffix(n))).filter(Boolean));
+
+      const categoryKey = deriveCategoryKey('', category_en, category_fr);
+      const categoryLabelFr = category_fr || category_en || '';
+      const categoryLabelEn = category_en || category_fr || '';
+      if (categoryKey){
+        if (!categoryLabels[categoryKey]) categoryLabels[categoryKey] = { fr:'', en:'' };
+        if (categoryLabelFr && !categoryLabels[categoryKey].fr) categoryLabels[categoryKey].fr = categoryLabelFr;
+        if (categoryLabelEn && !categoryLabels[categoryKey].en) categoryLabels[categoryKey].en = categoryLabelEn;
+      }
+
+      const { map: varDescEn } = parseVariableDescriptionEntries(variablesDescEnRaw);
+      const { map: varDescFr } = parseVariableDescriptionEntries(variablesDescFrRaw);
+      const varsFrSet = new Set(extractPlaceholders(template_fr).map(n=>canonicalVar(stripLangSuffix(n))).filter(Boolean));
+      const varsEnSet = new Set(extractPlaceholders(template_en).map(n=>canonicalVar(stripLangSuffix(n))).filter(Boolean));
       const varsUnion = Array.from(new Set([...varsFrSet, ...varsEnSet])).sort();
-      // ensure variables in catalog
+
       varsUnion.forEach(k=>{
         if(!k) return;
         if(!variables[k]) variables[k] = { description:{fr:'',en:''}, format:'text', example:{fr:'',en:''} };
-        const metaFr = varDescFr.get(k); const metaEn = varDescEn.get(k);
-        const fmt = inferFormat(k); variables[k].format = fmt;
+        const metaFr = varDescFr.get(k);
+        const metaEn = varDescEn.get(k);
+        const fmt = inferFormat(k);
+        variables[k].format = fmt;
         if (metaFr?.description && !variables[k].description.fr) variables[k].description.fr = metaFr.description;
         if (metaEn?.description && !variables[k].description.en) variables[k].description.en = metaEn.description;
         if (!variables[k].description.fr) variables[k].description.fr = `Valeur pour ${k}`;
@@ -227,8 +290,21 @@
         if (metaEn?.defaultValue && !variables[k].example.en) variables[k].example.en = metaEn.defaultValue;
         if (!variables[k].example.fr && !variables[k].example.en){ const ex=exampleFor(fmt); variables[k].example.fr = ex; variables[k].example.en = ex; }
       });
-      templates.push({ id, category, category_fr, category_en, title:{fr:title_fr,en:title_en}, description:{fr:description_fr,en:description_en}, subject:{fr:title_fr,en:title_en}, body:{fr:template_fr,en:template_en}, variables: varsUnion }); }
-    return { templates, variables }; }
+
+      templates.push({
+        id,
+        category: categoryKey,
+        category_fr: categoryLabelFr,
+        category_en: categoryLabelEn,
+        title:{fr:title_fr,en:title_en},
+        description:{fr:description_fr,en:description_en},
+        subject:{fr:title_fr,en:title_en},
+        body:{fr:template_fr,en:template_en},
+        variables: varsUnion
+      });
+    }
+    return { templates, variables, categoryLabels };
+  }
   async function handleXlsxImport(file, mode='merge', autoExport=false){
     try{
       const rows = await readXlsx(file);
@@ -240,6 +316,7 @@
         data.variables = out.variables;
         data.metadata.totalTemplates = data.templates.length;
         data.metadata.categories = Array.from(new Set(data.templates.map(t=>t.category).filter(Boolean))).sort();
+        data.metadata.categoryLabels = out.categoryLabels;
         selected = data.templates[0]?.id || null;
         saveDraft(); renderList(); renderEditor();
         notify(`Import Excel (remplacement) effectué: ${data.templates.length} modèles, ${Object.keys(data.variables).length} variables.`);
@@ -267,13 +344,29 @@
       // metadata
       data.metadata.totalTemplates = data.templates.length;
       data.metadata.categories = Array.from(new Set(data.templates.map(t=>t.category).filter(Boolean))).sort();
+      data.metadata.categoryLabels = { ...(data.metadata.categoryLabels||{}), ...out.categoryLabels };
       saveDraft(); renderList(); selected = out.templates[0]?.id || selected; renderEditor(); notify(`Import Excel (fusion) effectué: ${addedT} modèles, ${addedV} variables.`);
       if (autoExport) exportJson();
     } catch(e){ console.error(e); notify('Import Excel invalide.'); }
   }
 
-  function filtered(){ const t = term.toLowerCase(); return (data.templates||[]).filter(x=>{ if (!t) return true; const hay=[x.id,x.category,x.title?.fr,x.title?.en,x.description?.fr,x.description?.en,x.subject?.fr,x.subject?.en,x.body?.fr,x.body?.en].filter(Boolean).join(' ').toLowerCase(); return hay.includes(t); }); }
-  function getCategoryDisplay(t){ return t.category_fr || t.category_en || t.category || ''; }
+  function filtered(){
+    const t = term.toLowerCase();
+    return (data.templates||[]).filter(x=>{
+      if (!t) return true;
+      const hay=[x.id,x.category,getCategoryDisplay(x),x.title?.fr,x.title?.en,x.description?.fr,x.description?.en,x.subject?.fr,x.subject?.en,x.body?.fr,x.body?.en]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(t);
+    });
+  }
+  function getCategoryDisplay(t){
+    if (!t) return '';
+    const labels = data.metadata?.categoryLabels?.[t.category];
+    if (labels) return labels.fr || labels.en || '';
+    return t.category_fr || t.category_en || t.category || '';
+  }
   function renderList(){ const arr = filtered(); list.innerHTML = arr.map(x=>{ const ttl = x.title?.fr || x.title?.en || x.id; return `<div class="tile ${x.id===selected?'active':''}" data-id="${escapeHtml(x.id)}"><div style="font-weight:700">${escapeHtml(ttl)}</div><div style="color:#64748b;font-size:12px">${escapeHtml(getCategoryDisplay(x))}</div></div>`; }).join(''); $$('.tile', list).forEach(el=>{ el.onclick=()=>{ selected = el.dataset.id; renderList(); renderEditor(); }; }); }
 
   function renderEditor(){ const t = (data.templates||[]).find(x=>x.id===selected) || null; hdr.textContent = t ? `Éditeur – ${t.id}` : 'Éditeur'; if (!t) { idEl.value=''; if (catFrEl) catFrEl.value=''; if (catEnEl) catEnEl.value=''; titleFrEl.value=''; titleEnEl.value=''; descFrEl.value=''; descEnEl.value=''; subjFrEl.value=''; subjEnEl.value=''; bodyFrEl.value=''; bodyEnEl.value=''; if (varsBox) varsBox.innerHTML=''; if (varsValidationBox) varsValidationBox.style.display='none'; return; }
@@ -441,7 +534,9 @@
 
   // wire events
   function exportJson(){
+    (data.templates||[]).forEach(syncTemplateCategory);
     data.metadata.totalTemplates = data.templates.length;
+    data.metadata.categories = Array.from(new Set((data.templates||[]).map(t=>t.category).filter(Boolean))).sort();
     const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='complete_email_templates.json'; document.body.appendChild(a); a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000); a.remove();
   }
@@ -467,6 +562,9 @@
   };
 
   async function publishJsonToGitHub(showToast){
+    (data.templates||[]).forEach(syncTemplateCategory);
+    data.metadata.totalTemplates = data.templates.length;
+    data.metadata.categories = Array.from(new Set((data.templates||[]).map(t=>t.category).filter(Boolean))).sort();
     // Requires a classic repo-scoped token stored locally (NEVER hard-code): localStorage.setItem('ea_gh_token', 'ghp_...')
     const token = localStorage.getItem('ea_gh_token');
     if (!token){
@@ -670,8 +768,8 @@
 
   // inputs update
   idEl.oninput = (e) => { const t = data.templates.find(x=>x.id===selected); if (!t) return; const v=sanitizeId(e.target.value); e.target.value=v; if (!v) return; if (v!==t.id && data.templates.some(x=>x.id===v)){ e.target.style.borderColor='#fecaca'; return; } e.target.style.borderColor=''; t.id=v; selected=v; saveDraft(); renderList(); hdr.textContent = `Éditeur – ${t.id}`; };
-  if (catFrEl) catFrEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.category_fr=e.target.value; t.category = t.category_fr || t.category_en || ''; saveDraft(); renderList(); };
-  if (catEnEl) catEnEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.category_en=e.target.value; t.category = t.category_fr || t.category_en || ''; saveDraft(); renderList(); };
+  if (catFrEl) catFrEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.category_fr=e.target.value; syncTemplateCategory(t); saveDraft(); renderList(); };
+  if (catEnEl) catEnEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.category_en=e.target.value; syncTemplateCategory(t); saveDraft(); renderList(); };
   titleFrEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.title=t.title||{}; t.title.fr=e.target.value; saveDraft(); renderList(); };
   titleEnEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.title=t.title||{}; t.title.en=e.target.value; saveDraft(); renderList(); };
   descFrEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.description=t.description||{}; t.description.fr=e.target.value; saveDraft(); };

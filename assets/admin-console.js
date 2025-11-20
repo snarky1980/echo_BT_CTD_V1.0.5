@@ -124,9 +124,52 @@
     notify._t = setTimeout(() => { noticeEl.style.display = 'none'; }, 2500);
   };
 
+  const stripDiacritics = (value = '') => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const toSnakeCase = (value = '') => stripDiacritics(value)
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[-\s]+/g, '_')
+    .replace(/[^A-Za-z0-9_]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toLowerCase();
+  const deriveCategoryKey = (current = '', labelEn = '', labelFr = '') => {
+    const candidates = [current, labelEn, labelFr]
+      .map(v => String(v || '').trim())
+      .filter(Boolean);
+    if (!candidates.length) return '';
+    for (const candidate of candidates) {
+      if (/^[a-z0-9_]+$/.test(candidate) && candidate === candidate.toLowerCase()) return candidate;
+    }
+    return toSnakeCase(candidates[0]);
+  };
+  const syncTemplateCategory = (template) => {
+    if (!template || !data) return;
+    const labels = data.metadata.categoryLabels || (data.metadata.categoryLabels = {});
+    const key = deriveCategoryKey(template.category, template.category_en, template.category_fr);
+    template.category = key;
+    if (key) {
+      if (!labels[key]) labels[key] = { fr: '', en: '' };
+      if (template.category_fr) labels[key].fr = template.category_fr;
+      if (template.category_en) labels[key].en = template.category_en;
+    }
+  };
+  const getCategoryLabel = (key, fallback = '') => {
+    if (!key) return fallback || '';
+    const labels = data?.metadata?.categoryLabels?.[key];
+    if (labels) {
+      const primary = (lang === 'fr' ? labels.fr : labels.en) || '';
+      if (primary.trim()) return primary;
+      const secondary = (lang === 'fr' ? labels.en : labels.fr) || '';
+      if (secondary.trim()) return secondary;
+    }
+    return fallback || key;
+  };
+
   function ensureSchema(obj) {
     if (!obj || typeof obj !== 'object') obj = {};
     obj.metadata = obj.metadata || { version: '1.0', totalTemplates: 0, languages: ['fr', 'en'], categories: [] };
+    obj.metadata.categoryColors = obj.metadata.categoryColors || {};
+    obj.metadata.categoryLabels = obj.metadata.categoryLabels || {};
     obj.variables = obj.variables || {};
     obj.templates = Array.isArray(obj.templates) ? obj.templates : [];
     return obj;
@@ -186,6 +229,18 @@
   }
 
   function afterDataLoad() {
+    data.metadata.categoryLabels = data.metadata.categoryLabels || {};
+    (data.templates || []).forEach(t => {
+      if (t.category && !t.category_fr && !t.category_en) {
+        t.category_fr = t.category_fr || t.category;
+        t.category_en = t.category_en || t.category;
+      } else {
+        if (!t.category_fr && t.category_en) t.category_fr = t.category_en;
+        if (!t.category_en && t.category_fr) t.category_en = t.category_fr;
+      }
+      syncTemplateCategory(t);
+    });
+    data.metadata.categories = Array.from(new Set((data.templates || []).map(t => t.category).filter(Boolean))).sort();
     // Update computed metadata
     data.metadata.totalTemplates = data.templates.length;
     if (!selectedTemplateId && data.templates.length) {
@@ -442,7 +497,10 @@
 
   function renderCategoryFilter() {
     const cats = (data.metadata.categories || []);
-    catFilterSel.innerHTML = `<option value="all">Toutes</option>` + cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    const options = cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(getCategoryLabel(c))}</option>`).join('');
+    catFilterSel.innerHTML = `<option value="all">Toutes</option>${options}`;
+    if (filterCategory !== 'all' && !cats.includes(filterCategory)) filterCategory = 'all';
+    catFilterSel.value = filterCategory;
   }
 
   function renderSidebar() {
@@ -461,7 +519,7 @@
         <span style="margin-left:12px;">Définir catégorie:</span>
         <select id="bulk-cat">
           <option value="">(aucune)</option>
-          ${cats.map(c => `<option value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join('')}
+          ${cats.map(c => `<option value="${escapeAttr(c)}">${escapeHtml(getCategoryLabel(c))}</option>`).join('')}
         </select>
         <button id="bulk-apply" class="primary">Appliquer</button>
         ` : ''}
@@ -469,7 +527,7 @@
 
     tplList.innerHTML = bulkHeader + list.map(t => {
       const title = (t.title && t.title[lang]) || t.id;
-      const cat = t.category || '-';
+      const cat = getCategoryLabel(t.category, t.category || '-');
       const varsCount = (t.variables || []).length;
       const isActive = (t.id === selectedTemplateId);
       return `
@@ -529,8 +587,19 @@
       const newCat = $('#bulk-cat')?.value || '';
       if (selectedTemplateIds.size === 0) { notify('Aucun template sélectionné.', 'warn'); return; }
       data.templates.forEach(t => {
-        if (selectedTemplateIds.has(t.id)) t.category = newCat;
+        if (selectedTemplateIds.has(t.id)) {
+          t.category = newCat;
+          if (newCat) {
+            const labels = data.metadata.categoryLabels?.[newCat];
+            if (labels) {
+              if (labels.fr) t.category_fr = labels.fr;
+              if (labels.en) t.category_en = labels.en;
+            }
+          }
+          syncTemplateCategory(t);
+        }
       });
+      data.metadata.categories = Array.from(new Set((data.templates || []).map(t => t.category).filter(Boolean))).sort();
       saveDraft();
       renderSidebar();
       renderTemplateEditor();
@@ -561,6 +630,7 @@
       const hay = [
         t.id,
         t.category,
+        getCategoryLabel(t.category),
         t.title?.fr, t.title?.en,
         t.description?.fr, t.description?.en,
         t.subject?.fr, t.subject?.en,
@@ -638,8 +708,8 @@
         <div class="field">
           <label>Catégorie</label>
           <select id="tpl-category">
-            ${cats.map(c => `<option ${c===t.category?'selected':''} value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join('')}
-            ${!cats.includes(t.category||'') && t.category ? `<option selected value="${escapeAttr(t.category)}">${escapeHtml(t.category)} (custom)</option>` : ''}
+            ${cats.map(c => `<option ${c===t.category?'selected':''} value="${escapeAttr(c)}">${escapeHtml(getCategoryLabel(c))}</option>`).join('')}
+            ${!cats.includes(t.category||'') && t.category ? `<option selected value="${escapeAttr(t.category)}">${escapeHtml(getCategoryLabel(t.category, t.category))} (custom)</option>` : ''}
           </select>
         </div>
       </div>
@@ -726,9 +796,20 @@
     };
 
     $('#tpl-category').onchange = (e) => {
-      t.category = e.target.value;
+      const value = e.target.value;
+      t.category = value;
+      if (value) {
+        const labels = data.metadata.categoryLabels?.[value];
+        if (labels) {
+          if (labels.fr) t.category_fr = labels.fr;
+          if (labels.en) t.category_en = labels.en;
+        }
+      }
+      syncTemplateCategory(t);
+      data.metadata.categories = Array.from(new Set((data.templates || []).map(x => x.category).filter(Boolean))).sort();
       saveDraft();
       renderSidebar();
+      renderMetadataEditor();
     };
 
     $('#tpl-title').oninput = (e) => {

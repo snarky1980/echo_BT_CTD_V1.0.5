@@ -1,9 +1,19 @@
-// Deprecated admin console script. Redirect to admin-simple and no-op.
+// Admin Console for Email Assistant v6
 (function () {
-  try { console.warn('[admin-console] This console is retired. Redirecting to admin-simple.html'); } catch {}
-  try { window.location.replace('../admin-simple.html'); } catch {}
-})();
+  try { window.__EA_SCRIPT_LOADED = Date.now(); } catch {}
+  const JSON_PATH = './complete_email_templates.json';
+  const DRAFT_KEY = 'ea_admin_draft_v2';
 
+  // State
+  let data = null;              // { metadata, variables, templates }
+  let lang = (function(){ try { return localStorage.getItem('ea_admin_lang') || 'fr'; } catch { return 'fr'; } })(); // UI edit language toggle for localized fields
+  let selectedTemplateId = null;
+  let searchTerm = '';
+  let filterCategory = 'all';
+  let bulkMode = false;
+  let selectedTemplateIds = new Set();
+  // When true, the next sidebar render will focus and scroll the active tile into view
+  let _revealActiveOnRender = false;
 
   // DOM
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -114,9 +124,52 @@
     notify._t = setTimeout(() => { noticeEl.style.display = 'none'; }, 2500);
   };
 
+  const stripDiacritics = (value = '') => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const toSnakeCase = (value = '') => stripDiacritics(value)
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[-\s]+/g, '_')
+    .replace(/[^A-Za-z0-9_]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toLowerCase();
+  const deriveCategoryKey = (current = '', labelEn = '', labelFr = '') => {
+    const candidates = [current, labelEn, labelFr]
+      .map(v => String(v || '').trim())
+      .filter(Boolean);
+    if (!candidates.length) return '';
+    for (const candidate of candidates) {
+      if (/^[a-z0-9_]+$/.test(candidate) && candidate === candidate.toLowerCase()) return candidate;
+    }
+    return toSnakeCase(candidates[0]);
+  };
+  const syncTemplateCategory = (template) => {
+    if (!template || !data) return;
+    const labels = data.metadata.categoryLabels || (data.metadata.categoryLabels = {});
+    const key = deriveCategoryKey(template.category, template.category_en, template.category_fr);
+    template.category = key;
+    if (key) {
+      if (!labels[key]) labels[key] = { fr: '', en: '' };
+      if (template.category_fr) labels[key].fr = template.category_fr;
+      if (template.category_en) labels[key].en = template.category_en;
+    }
+  };
+  const getCategoryLabel = (key, fallback = '') => {
+    if (!key) return fallback || '';
+    const labels = data?.metadata?.categoryLabels?.[key];
+    if (labels) {
+      const primary = (lang === 'fr' ? labels.fr : labels.en) || '';
+      if (primary.trim()) return primary;
+      const secondary = (lang === 'fr' ? labels.en : labels.fr) || '';
+      if (secondary.trim()) return secondary;
+    }
+    return fallback || key;
+  };
+
   function ensureSchema(obj) {
     if (!obj || typeof obj !== 'object') obj = {};
     obj.metadata = obj.metadata || { version: '1.0', totalTemplates: 0, languages: ['fr', 'en'], categories: [] };
+    obj.metadata.categoryColors = obj.metadata.categoryColors || {};
+    obj.metadata.categoryLabels = obj.metadata.categoryLabels || {};
     obj.variables = obj.variables || {};
     obj.templates = Array.isArray(obj.templates) ? obj.templates : [];
     return obj;
@@ -176,6 +229,18 @@
   }
 
   function afterDataLoad() {
+    data.metadata.categoryLabels = data.metadata.categoryLabels || {};
+    (data.templates || []).forEach(t => {
+      if (t.category && !t.category_fr && !t.category_en) {
+        t.category_fr = t.category_fr || t.category;
+        t.category_en = t.category_en || t.category;
+      } else {
+        if (!t.category_fr && t.category_en) t.category_fr = t.category_en;
+        if (!t.category_en && t.category_fr) t.category_en = t.category_fr;
+      }
+      syncTemplateCategory(t);
+    });
+    data.metadata.categories = Array.from(new Set((data.templates || []).map(t => t.category).filter(Boolean))).sort();
     // Update computed metadata
     data.metadata.totalTemplates = data.templates.length;
     if (!selectedTemplateId && data.templates.length) {
@@ -432,7 +497,10 @@
 
   function renderCategoryFilter() {
     const cats = (data.metadata.categories || []);
-    catFilterSel.innerHTML = `<option value="all">Toutes</option>` + cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    const options = cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(getCategoryLabel(c))}</option>`).join('');
+    catFilterSel.innerHTML = `<option value="all">Toutes</option>${options}`;
+    if (filterCategory !== 'all' && !cats.includes(filterCategory)) filterCategory = 'all';
+    catFilterSel.value = filterCategory;
   }
 
   function renderSidebar() {
@@ -451,7 +519,7 @@
         <span style="margin-left:12px;">Définir catégorie:</span>
         <select id="bulk-cat">
           <option value="">(aucune)</option>
-          ${cats.map(c => `<option value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join('')}
+          ${cats.map(c => `<option value="${escapeAttr(c)}">${escapeHtml(getCategoryLabel(c))}</option>`).join('')}
         </select>
         <button id="bulk-apply" class="primary">Appliquer</button>
         ` : ''}
@@ -459,7 +527,7 @@
 
     tplList.innerHTML = bulkHeader + list.map(t => {
       const title = (t.title && t.title[lang]) || t.id;
-      const cat = t.category || '-';
+      const cat = getCategoryLabel(t.category, t.category || '-');
       const varsCount = (t.variables || []).length;
       const isActive = (t.id === selectedTemplateId);
       return `
@@ -519,8 +587,19 @@
       const newCat = $('#bulk-cat')?.value || '';
       if (selectedTemplateIds.size === 0) { notify('Aucun template sélectionné.', 'warn'); return; }
       data.templates.forEach(t => {
-        if (selectedTemplateIds.has(t.id)) t.category = newCat;
+        if (selectedTemplateIds.has(t.id)) {
+          t.category = newCat;
+          if (newCat) {
+            const labels = data.metadata.categoryLabels?.[newCat];
+            if (labels) {
+              if (labels.fr) t.category_fr = labels.fr;
+              if (labels.en) t.category_en = labels.en;
+            }
+          }
+          syncTemplateCategory(t);
+        }
       });
+      data.metadata.categories = Array.from(new Set((data.templates || []).map(t => t.category).filter(Boolean))).sort();
       saveDraft();
       renderSidebar();
       renderTemplateEditor();
@@ -551,6 +630,7 @@
       const hay = [
         t.id,
         t.category,
+        getCategoryLabel(t.category),
         t.title?.fr, t.title?.en,
         t.description?.fr, t.description?.en,
         t.subject?.fr, t.subject?.en,
@@ -628,8 +708,8 @@
         <div class="field">
           <label>Catégorie</label>
           <select id="tpl-category">
-            ${cats.map(c => `<option ${c===t.category?'selected':''} value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join('')}
-            ${!cats.includes(t.category||'') && t.category ? `<option selected value="${escapeAttr(t.category)}">${escapeHtml(t.category)} (custom)</option>` : ''}
+            ${cats.map(c => `<option ${c===t.category?'selected':''} value="${escapeAttr(c)}">${escapeHtml(getCategoryLabel(c))}</option>`).join('')}
+            ${!cats.includes(t.category||'') && t.category ? `<option selected value="${escapeAttr(t.category)}">${escapeHtml(getCategoryLabel(t.category, t.category))} (custom)</option>` : ''}
           </select>
         </div>
       </div>
@@ -716,9 +796,20 @@
     };
 
     $('#tpl-category').onchange = (e) => {
-      t.category = e.target.value;
+      const value = e.target.value;
+      t.category = value;
+      if (value) {
+        const labels = data.metadata.categoryLabels?.[value];
+        if (labels) {
+          if (labels.fr) t.category_fr = labels.fr;
+          if (labels.en) t.category_en = labels.en;
+        }
+      }
+      syncTemplateCategory(t);
+      data.metadata.categories = Array.from(new Set((data.templates || []).map(x => x.category).filter(Boolean))).sort();
       saveDraft();
       renderSidebar();
+      renderMetadataEditor();
     };
 
     $('#tpl-title').oninput = (e) => {
@@ -952,7 +1043,11 @@
       });
       function replacePlaceholders(txt) {
         return String(txt||'').replace(/<<([^>]+)>>/g, (m, g1) => {
-          return (values[g1] !== undefined ? values[g1] : (data.variables && data.variables[g1] && data.variables[g1].example) || m);
+          if (values[g1] !== undefined) return values[g1];
+          const v = data.variables && data.variables[g1];
+          const byLang = v && v.examples && v.examples[lang];
+          const fallback = v && v.example;
+          return byLang || fallback || m;
         });
       }
       function updatePreview() {
@@ -1057,7 +1152,7 @@
                 <div class="title">${escapeHtml(k)}</div>
                 <div class="chips">
                   <span class="badge">${escapeHtml(v.format || 'text')}</span>
-                  <span class="pill">ex: ${escapeHtml(v.example || '')}</span>
+                  <span class="pill">ex: ${escapeHtml((v.examples && v.examples[lang]) || v.example || '')}</span>
                 </div>
               </div>
               <div class="row">
@@ -1818,26 +1913,30 @@
     if (!header) return vars;
     const sep = header.includes(';') && !header.includes(',') ? ';' : ',';
     const keys = header.split(sep).map(s => s.trim().toLowerCase());
-    
+
     for (const line of lines) {
       if (!line.trim()) continue;
       const cells = splitCsvLine(line, sep);
       const obj = {};
       keys.forEach((k, i) => obj[k] = cells[i] ?? '');
-      
+
       const name = (obj.name || obj.variable || obj.var || obj.key || '').trim();
       if (!name) continue;
-      
+
       const desc_fr = (obj.description_fr || obj.desc_fr || obj.descriptionfr || '').trim();
       const desc_en = (obj.description_en || obj.desc_en || obj.descriptionen || '').trim();
       const format = (obj.format || 'text').trim();
-      const example = (obj.example || obj.example_fr || obj.exemple || '').trim();
-      
-      vars[name] = {
+      const example_fr = (obj.example_fr || obj.exemple_fr || obj.exemple || '').trim();
+      const example_en = (obj.example_en || '').trim();
+      const example = (obj.example || example_fr || example_en || '').trim();
+
+      const meta = {
         description: { fr: desc_fr, en: desc_en },
         format: format,
         example: example
       };
+      if (example_fr || example_en) meta.examples = { fr: example_fr || '', en: example_en || '' };
+      vars[name] = meta;
     }
     return vars;
   }
@@ -1854,6 +1953,11 @@
         lib[name].description = meta.description || lib[name].description;
         lib[name].format = meta.format || lib[name].format;
         lib[name].example = meta.example || lib[name].example;
+        if (meta.examples) {
+          lib[name].examples = Object.assign({}, lib[name].examples || {}, meta.examples);
+          // Keep example in sync if empty
+          if (!lib[name].example) lib[name].example = lib[name].examples.fr || lib[name].examples.en || '';
+        }
       }
     }
     return added;

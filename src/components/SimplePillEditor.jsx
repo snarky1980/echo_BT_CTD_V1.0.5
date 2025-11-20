@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState, useImperativeHandle } from 'react';
-import { varKeysMatch } from '../utils/variables';
+import { varKeysMatch, resolveVariableValue } from '../utils/variables';
 
 const escapeHtml = (input = '') =>
   String(input)
@@ -70,11 +70,7 @@ const SimplePillEditor = React.forwardRef(({
   const clickSelectTimerRef = useRef(null);
 
   const getVarValue = useCallback((name = '') => {
-    const lang = (templateLanguage || 'fr').toLowerCase();
-    const suffix = name.match(/_(fr|en)$/i)?.[1]?.toLowerCase();
-    if (suffix) return variables?.[name] ?? '';
-    if (lang === 'en') return variables?.[`${name}_EN`] ?? variables?.[name] ?? '';
-    return variables?.[`${name}_FR`] ?? variables?.[name] ?? '';
+    return resolveVariableValue(variables, name, templateLanguage);
   }, [variables, templateLanguage]);
 
   const renderContent = (text) => {
@@ -272,6 +268,29 @@ const SimplePillEditor = React.forwardRef(({
   }, [value, variables, isFocused, getVarValue, templateLanguage]);
 
   useEffect(() => { applyFocusedPill(focusedVarName); }, [focusedVarName, variables, applyFocusedPill]);
+
+  // Update pill display values when variables change, even when focused
+  useEffect(() => {
+    if (!editorRef.current) return;
+    const pills = editorRef.current.querySelectorAll('.var-pill');
+    pills.forEach((pill) => {
+      const varName = pill.getAttribute('data-var');
+      if (!varName) return;
+      const varValue = getVarValue(varName);
+      const isFilled = varValue.trim().length > 0;
+      const displayValue = isFilled ? varValue : `<<${varName}>>`;
+      
+      // Only update if the pill content doesn't match the expected display value
+      const currentText = (pill.textContent || '').trim();
+      const expectedText = displayValue.trim();
+      if (currentText !== expectedText) {
+        pill.textContent = displayValue;
+        pill.classList.toggle('filled', isFilled);
+        pill.classList.toggle('empty', !isFilled);
+        pill.setAttribute('data-display', isFilled ? varValue : '');
+      }
+    });
+  }, [variables, getVarValue]);
 
   useEffect(() => {
     if (!isFocused || !editorRef.current) return;
