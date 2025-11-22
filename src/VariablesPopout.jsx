@@ -551,10 +551,8 @@ export default function VariablesPopout({
                 <div className="ea-popout-card-inner rounded-lg p-2">
                   {/* Label and buttons */}
                   <div className="mb-2 flex items-start justify-between gap-3">
-                    <label htmlFor={sanitizedVarId} className="text-sm font-semibold text-gray-900 flex-1 leading-tight overflow-hidden">
-                      <div className="truncate">
-                        {varInfo.description?.[langForDisplay] || varInfo.description?.fr || varInfo.description?.en || varName}
-                      </div>
+                    <label htmlFor={sanitizedVarId} className="text-sm font-semibold text-gray-900 flex-1 leading-snug">
+                      {varInfo.description?.[langForDisplay] || varInfo.description?.fr || varInfo.description?.en || varName}
                     </label>
                     <div className="shrink-0 flex items-center gap-1 opacity-0 hover:opacity-100 focus-within:opacity-100 transition-opacity">
                       <button
