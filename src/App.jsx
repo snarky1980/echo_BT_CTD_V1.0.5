@@ -1745,7 +1745,8 @@ function App() {
           const subjectTemplate = latestTemplate?.subject?.[latestLanguage] || ''
           const bodyTemplate = latestTemplate?.body?.[latestLanguage] || ''
 
-          if (subjectTemplate.includes(`<<${varName}>>`)) {
+          const subjectHasVar = !!findTemplatePlaceholderForVar(subjectTemplate, varName)
+          if (subjectHasVar) {
             setFinalSubject(prev => {
               const base = typeof prev === 'string' ? prev : finalSubjectRef.current || ''
               const updated = ensurePlaceholderInText(base, subjectTemplate, varName)
@@ -1754,7 +1755,8 @@ function App() {
             })
           }
 
-          if (bodyTemplate.includes(`<<${varName}>>`)) {
+          const bodyHasVar = !!findTemplatePlaceholderForVar(bodyTemplate, varName)
+          if (bodyHasVar) {
             setFinalBody(prev => {
               const base = typeof prev === 'string' ? prev : finalBodyRef.current || ''
               const updated = ensurePlaceholderInText(base, bodyTemplate, varName)
