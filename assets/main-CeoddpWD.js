@@ -13402,7 +13402,7 @@ function HelpCenter({ language = "fr", onClose, supportEmail = "jskennedy80@gmai
         extra: formData.extra.trim(),
         language,
         submittedAt: (/* @__PURE__ */ new Date()).toISOString(),
-        product: "ECHO"
+        product: "ECHO-BT-CTD"
       };
       if (formData.category === "template") {
         payload.templateDetails = {
@@ -13452,8 +13452,10 @@ function HelpCenter({ language = "fr", onClose, supportEmail = "jskennedy80@gmai
       });
     } catch (error) {
       console.error("Contact form submission failed, using mailto fallback:", error);
-      const subject = `ECHO ${formData.category}: ${formData.name}`;
-      const body = `Name: ${formData.name}
+      const subject = `ECHO-BT-CTD ${formData.category}: ${formData.name}`;
+      const body = `Product: ECHO-BT-CTD
+
+Name: ${formData.name}
 Email: ${formData.email}
 
 Category: ${formData.category}
@@ -24527,4 +24529,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-D4a4Hdg0.js.map
+//# sourceMappingURL=main-CeoddpWD.js.map
