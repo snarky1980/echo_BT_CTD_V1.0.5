@@ -133,14 +133,27 @@ export default function VariablesPopout({
       return false
     }
   })
-  const [columns, setColumns] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ea_popout_columns')
-      return saved ? parseInt(saved, 10) : 2
-    } catch {
-      return 2
+  const [columns, setColumns] = useState(2)
+
+  // Auto-adjust columns based on window width
+  useEffect(() => {
+    const calculateColumns = () => {
+      const width = window.innerWidth
+      if (width < 500) return 1
+      if (width < 800) return 2
+      return 3
     }
-  })
+    
+    const handleResize = () => {
+      setColumns(calculateColumns())
+    }
+    
+    // Set initial columns
+    handleResize()
+    
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
   
   console.log('🔍 VariablesPopout initialized with variables:', variables)
   const [focusedVar, setFocusedVar] = useState(null)
@@ -167,14 +180,6 @@ export default function VariablesPopout({
       window.focus()
     }
   }, [isPinned])
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('ea_popout_columns', String(columns))
-    } catch (err) {
-      console.warn('Failed to persist popout columns:', err)
-    }
-  }, [columns])
 
   useEffect(() => {
     if (!isPinned) return
@@ -566,15 +571,13 @@ export default function VariablesPopout({
     reinitialize: 'Réinitialiser',
     clear: 'Supprimer',
     close: 'Fermer',
-    pin: ({ pinned }) => pinned ? 'Épinglé • cette fenêtre reste devant' : 'Épingler cette fenêtre',
-    columns: 'Colonnes'
+    pin: ({ pinned }) => pinned ? 'Épinglé • cette fenêtre reste devant' : 'Épingler cette fenêtre'
   } : {
     title: 'Edit Variables',
     reinitialize: 'Reinitialize',
     clear: 'Delete',
     close: 'Close',
-    pin: ({ pinned }) => pinned ? 'Pinned • window stays on top' : 'Pin this window',
-    columns: 'Columns'
+    pin: ({ pinned }) => pinned ? 'Pinned • window stays on top' : 'Pin this window'
   }
 
   return (
@@ -595,24 +598,6 @@ export default function VariablesPopout({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Column selector */}
-          <div className="flex items-center gap-1 bg-white/10 rounded-lg p-1">
-            {[1, 2, 3].map((num) => (
-              <button
-                key={num}
-                onClick={() => setColumns(num)}
-                className={`px-3 py-1 rounded text-sm font-medium transition-all ${
-                  columns === num
-                    ? 'bg-white text-slate-800'
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-                }`}
-                title={`${num} ${t.columns.toLowerCase()}`}
-              >
-                {num}
-              </button>
-            ))}
-          </div>
-          
           <button
             onClick={() => setIsPinned((prev) => !prev)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all font-medium text-sm ${

@@ -1478,19 +1478,19 @@ function App() {
       url.searchParams.set('varsOnly', '1')
       if (selectedTemplate?.id) url.searchParams.set('id', selectedTemplate.id)
       if (templateLanguage) url.searchParams.set('lang', templateLanguage)
-      // Calculate optimal size based on number of variables and preferred columns
+      // Calculate optimal size based on number of variables
       const varCount = selectedTemplate?.variables?.length || 0
-      const savedColumns = parseInt(localStorage.getItem('ea_popout_columns') || '2', 10)
       
-      // Base dimensions for column layouts
-      const colWidth = 320 // width per column
-      const cardHeight = 120 // estimated height per card
+      // Base dimensions - responsive width that allows 2 columns by default
+      const cardHeight = 110 // estimated height per card
       const headerHeight = 60 // header bar height
       const padding = 40 // total padding
       
-      // Calculate ideal dimensions
-      let w = Math.max(380, (colWidth * savedColumns) + padding)
-      const rows = Math.ceil(varCount / savedColumns)
+      // Start with a good width for 2 columns (responsive breakpoint)
+      let w = 720
+      
+      // Calculate height based on 2-column layout
+      const rows = Math.ceil(varCount / 2)
       let h = Math.max(400, Math.min(900, headerHeight + (rows * cardHeight) + padding))
       
       // Clamp to available screen space
