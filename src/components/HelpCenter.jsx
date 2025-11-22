@@ -611,41 +611,10 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'j
         deadline: ''
       })
     } catch (error) {
-      console.error('Contact form submission failed, using mailto fallback:', error)
+      console.error('Contact form submission failed:', error)
       
-      // Fallback: Open mailto link with the form data
-      const subject = `ECHO-BT-CTD ${formData.category}: ${formData.name}`
-      const body = `Product: ECHO-BT-CTD\n\nName: ${formData.name}\nEmail: ${formData.email}\n\nCategory: ${formData.category}\n\nMessage:\n${formData.message}\n\n${formData.extra ? `Additional info:\n${formData.extra}\n\n` : ''}${formData.category === 'template' ? `\nTemplate Details:\nType: ${templateDetails.templateType}\nLanguages: ${Object.keys(templateDetails.languages).filter(k => templateDetails.languages[k]).join(', ')}\nTitle (FR): ${templateDetails.titleFr}\nTitle (EN): ${templateDetails.titleEn}\n` : ''}`
-      
-      const mailtoUrl = `mailto:${supportEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-      
-      // Open mailto link - use location.href for better compatibility
-      window.location.href = mailtoUrl
-      
-      // Don't set error status - the mailto link will handle it
-      // Set success after a short delay to give the mailto time to trigger
-      setTimeout(() => {
-        setStatus('success')
-        setErrors({})
-        setFormData((prev) => ({
-          ...prev,
-          message: '',
-          extra: ''
-        }))
-        setTemplateDetails({
-          templateType: 'new',
-          existingId: '',
-          languages: { fr: false, en: false },
-          titleFr: '',
-          titleEn: '',
-          category: '',
-          audience: '',
-          context: '',
-          variablePlan: '',
-          examples: '',
-          deadline: ''
-        })
-      }, 100)
+      // Show error status without opening email client
+      setStatus('error')
     }
   }
 
