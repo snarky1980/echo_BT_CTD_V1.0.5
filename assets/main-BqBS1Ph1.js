@@ -21217,7 +21217,7 @@ function App() {
     return String(text ?? "").replace(/<<([^>]+)>>/g, (match, varName) => {
       const resolved = resolveVariableValue(sourceValues, varName, language);
       if (resolved === "__DELETED__") {
-        return match;
+        return "";
       }
       if (resolved && resolved.trim().length) {
         return resolved;
@@ -21226,7 +21226,7 @@ function App() {
       if (direct !== void 0 && direct !== null) {
         const asString = String(direct);
         if (asString === "__DELETED__") {
-          return match;
+          return "";
         }
         if (asString.trim().length) return asString;
       }
@@ -24457,4 +24457,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-C0v9SJyp.js.map
+//# sourceMappingURL=main-BqBS1Ph1.js.map
