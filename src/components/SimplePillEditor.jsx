@@ -105,6 +105,13 @@ const SimplePillEditor = React.forwardRef(({
     while ((match = regex.exec(text)) !== null) {
       const varName = match[1];
       const varValue = getVarValue(varName);
+      
+      // Skip deleted variables - don't render the pill at all
+      if (varValue === '__DELETED__') {
+        lastIndex = regex.lastIndex;
+        continue;
+      }
+      
       const isFilled = varValue.trim().length > 0;
       const displayValue = isFilled ? varValue : `<<${varName}>>`;
       const storedValue = `<<${varName}>>`;
