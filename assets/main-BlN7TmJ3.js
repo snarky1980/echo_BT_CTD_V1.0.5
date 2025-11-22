@@ -19542,27 +19542,38 @@ const applyAssignments$1 = (prev = {}, assignments = {}) => {
   });
   return hasDiff ? next : prev;
 };
-const escapeRegExp = (value = "") => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const cleanupWhitespace = (text = "") => text.replace(/[ \t]{2,}/g, " ").replace(/\s+([,.;:!?])/g, "$1").replace(/[ \t]+\n/g, "\n").replace(/\n[ \t]+/g, "\n").replace(/\n{3,}/g, "\n\n");
+const findTemplatePlaceholderForVar = (templateText = "", varName = "") => {
+  if (!templateText || !varName) return null;
+  const normalizedTarget = normalizeVarKey(varName);
+  if (!normalizedTarget) return null;
+  const regex = /<<([^>]+)>>/g;
+  let match;
+  while ((match = regex.exec(templateText)) !== null) {
+    if (normalizeVarKey(match[1]) === normalizedTarget) {
+      return match[0];
+    }
+  }
+  return null;
+};
 const removeVariablePlaceholderFromText = (text = "", varName = "") => {
   if (!text || !varName) return text;
-  const placeholder = `<<${varName}>>`;
-  if (!text.includes(placeholder)) return text;
-  const pattern = new RegExp(`\\s*${escapeRegExp(placeholder)}\\s*`, "g");
-  const updated = text.replace(pattern, (match) => {
-    if (match.includes("\n")) {
-      const hasLeading = /^\s*\n/.test(match);
-      const hasTrailing = /\n\s*$/.test(match);
-      if (hasLeading && hasTrailing) return "\n\n";
-      if (hasLeading || hasTrailing) return "\n";
-    }
+  const normalizedTarget = normalizeVarKey(varName);
+  if (!normalizedTarget) return text;
+  const pattern = /(\s*)<<([^>]+)>>(\s*)/g;
+  const updated = text.replace(pattern, (fullMatch, leading = "", innerName = "", trailing = "") => {
+    if (normalizeVarKey(innerName) !== normalizedTarget) return fullMatch;
+    const hasLeadingNewline = /\n/.test(leading);
+    const hasTrailingNewline = /\n/.test(trailing);
+    if (hasLeadingNewline && hasTrailingNewline) return "\n\n";
+    if (hasLeadingNewline || hasTrailingNewline) return "\n";
     return " ";
   });
   return cleanupWhitespace(updated);
 };
 const ensurePlaceholderInText = (text = "", templateText = "", varName = "") => {
   if (!templateText || !varName) return text || "";
-  const placeholder = `<<${varName}>>`;
+  const placeholder = findTemplatePlaceholderForVar(templateText, varName) || `<<${varName}>>`;
   const source = text || "";
   if (source.includes(placeholder)) return source;
   const varIndex = templateText.indexOf(placeholder);
@@ -24494,4 +24505,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-DJ2E73DJ.js.map
+//# sourceMappingURL=main-BlN7TmJ3.js.map
