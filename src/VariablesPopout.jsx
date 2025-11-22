@@ -601,7 +601,7 @@ export default function VariablesPopout({
 
       {/* Variables Grid */}
       <div className="py-2 px-5">
-        <div className="grid grid-cols-1 gap-2" style={{ width: '100%', minWidth: 0 }}>
+        <div className="grid grid-cols-2 gap-3" style={{ width: '100%', minWidth: 0 }}>
           {(() => {
             // Extract variables in the order they appear in template text
             const subjectText = selectedTemplate?.subject?.[templateLanguage] || ''

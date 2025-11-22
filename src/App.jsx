@@ -30,21 +30,18 @@ import './App.css'
 const NAVY_TEXT = '#1c2f4a'
 
 const CATEGORY_BADGE_STYLES = {
-  Annulations: { bg: '#ffe4e6', border: '#fecdd3', text: NAVY_TEXT },
-  Assurance: { bg: '#e0f2f1', border: '#99e9d3', text: NAVY_TEXT },
-  'Avis de voyage': { bg: '#fef3c7', border: '#fde68a', text: NAVY_TEXT },
-  'Demande générale': { bg: '#f1f5f9', border: '#cbd5f5', text: NAVY_TEXT },
-  Devis: { bg: '#ede9fe', border: '#c4b5fd', text: NAVY_TEXT },
-  'Itinéraire': { bg: '#e0f2fe', border: '#bae6fd', text: NAVY_TEXT },
-  'Marketing & promotions': { bg: '#fae8ff', border: '#f0abfc', text: NAVY_TEXT },
-  Paiements: { bg: '#dcfce7', border: '#bbf7d0', text: NAVY_TEXT },
-  Plaintes: { bg: '#ffedd5', border: '#fdba74', text: NAVY_TEXT },
-  'Réservation': { bg: '#dbeafe', border: '#bfdbfe', text: NAVY_TEXT },
-  'Suivi post-voyage': { bg: '#f7fee7', border: '#d9f99d', text: NAVY_TEXT },
-  'Urgence': { bg: '#fee2e2', border: '#fecaca', text: NAVY_TEXT },
-  'Visa & documentation': { bg: '#cffafe', border: '#a5f3fc', text: NAVY_TEXT },
-  "Voyages d'affaires": { bg: '#e0e7ff', border: '#c7d2fe', text: NAVY_TEXT },
-  'Voyages de groupe': { bg: '#ccfbf1', border: '#99f6e4', text: NAVY_TEXT },
+  quotes_and_approvals: { bg: '#ede9fe', border: '#c4b5fd', text: NAVY_TEXT },
+  follow_ups_and_cancellations: { bg: '#ffe4e6', border: '#fecdd3', text: NAVY_TEXT },
+  documents_and_formatting: { bg: '#e0f2fe', border: '#bae6fd', text: NAVY_TEXT },
+  deadlines_and_delivery: { bg: '#ffedd5', border: '#fdba74', text: NAVY_TEXT },
+  clarifications_and_client_instructions: { bg: '#fef3c7', border: '#fde68a', text: NAVY_TEXT },
+  security_and_copyright: { bg: '#fee2e2', border: '#fecaca', text: NAVY_TEXT },
+  quality_assurance: { bg: '#dcfce7', border: '#bbf7d0', text: NAVY_TEXT },
+  terminology_and_glossaries: { bg: '#cffafe', border: '#a5f3fc', text: NAVY_TEXT },
+  revisions_and_feedback: { bg: '#fae8ff', border: '#f0abfc', text: NAVY_TEXT },
+  team_coordination: { bg: '#e0e7ff', border: '#c7d2fe', text: NAVY_TEXT },
+  technical_issues: { bg: '#ccfbf1', border: '#99f6e4', text: NAVY_TEXT },
+  general_inquiries: { bg: '#f1f5f9', border: '#cbd5e1', text: NAVY_TEXT },
   default: { bg: '#e6f0ff', border: '#c7dbff', text: NAVY_TEXT }
 }
 
@@ -1339,7 +1336,11 @@ function App() {
           variables: prev
         }))
       })
-      return applyAssignments(prev, assignments)
+      const next = applyAssignments(prev, assignments)
+      if (next !== prev) {
+        variablesRef.current = next
+      }
+      return next
     })
   }, [])
 
@@ -1577,7 +1578,11 @@ function App() {
         if (msg.type === 'update' && (msg.variables || msg.templateId || msg.templateLanguage || msg.hasOwnProperty('focusedVar'))) {
           if (msg.variables && typeof msg.variables === 'object') {
             varsRemoteUpdateRef.current = true
-            setVariables(prev => ({ ...prev, ...msg.variables }))
+            setVariables(prev => {
+              const next = { ...prev, ...msg.variables }
+              variablesRef.current = next
+              return next
+            })
           }
           if (msg.hasOwnProperty('focusedVar')) {
             setFocusedVar(msg.focusedVar)
@@ -1590,7 +1595,11 @@ function App() {
         } else if (msg.type === 'state') {
           if (msg.variables) {
             varsRemoteUpdateRef.current = true
-            setVariables(prev => ({ ...prev, ...msg.variables }))
+            setVariables(prev => {
+              const next = { ...prev, ...msg.variables }
+              variablesRef.current = next
+              return next
+            })
           }
           if (msg.hasOwnProperty('focusedVar')) {
             setFocusedVar(msg.focusedVar)
@@ -2033,7 +2042,11 @@ function App() {
             variables: prev
           }))
         })
-        return applyAssignments(prev, assignments)
+        const next = applyAssignments(prev, assignments)
+        if (next !== prev) {
+          variablesRef.current = next
+        }
+        return next
       })
       // focus first mapped field
       const first = Object.keys(map)[0]
@@ -2069,6 +2082,8 @@ function App() {
   // Set initial empty editors so contentEditable placeholder shows
   useEffect(() => {
     if (!selectedTemplate) {
+      finalSubjectRef.current = ''
+      finalBodyRef.current = ''
       setFinalSubject('')
       setFinalBody('')
     }
@@ -2212,6 +2227,7 @@ function App() {
     
     // Rebuild variables with the new template's variable list
     const newVariables = buildInitialVariables(selectedTemplate, templatesData, templateLanguage)
+    variablesRef.current = newVariables
     setVariables(newVariables)
     
     if (debug) console.log('[EA][Debug] Rebuilt variables for template:', selectedTemplate.id, 'vars:', Object.keys(newVariables).slice(0, 5))
@@ -2274,7 +2290,13 @@ function App() {
           e.preventDefault()
           if (templatesData) {
             const initialVars = buildInitialVariables(selectedTemplate, templatesData, templateLanguage)
-            setVariables(prev => applyAssignments(prev, initialVars))
+            setVariables(prev => {
+              const next = applyAssignments(prev, initialVars)
+              if (next !== prev) {
+                variablesRef.current = next
+              }
+              return next
+            })
           }
         }
         
@@ -2626,18 +2648,23 @@ function App() {
     })
   }, [categories, getCategoryLabel, interfaceLanguage])
 
-  const replaceVariablesWithValues = (text, values) => {
+  const replaceVariablesWithValues = useCallback((text, overrideValues) => {
     if (!text) return ''
-    let result = text
-    Object.entries(values || {}).forEach(([varName, value]) => {
-      const replacement = value !== undefined && value !== null && String(value).length
-        ? String(value)
-        : `<<${varName}>>`
-      const regex = new RegExp(`<<${varName}>>`, 'g')
-      result = result.replace(regex, replacement)
+    const sourceValues = overrideValues || variablesRef.current || {}
+    const language = (templateLanguageRef.current || templateLanguage || 'fr')
+    return String(text ?? '').replace(/<<([^>]+)>>/g, (match, varName) => {
+      const resolved = resolveVariableValue(sourceValues, varName, language)
+      if (resolved && resolved.trim().length) {
+        return resolved
+      }
+      const direct = sourceValues[varName]
+      if (direct !== undefined && direct !== null) {
+        const asString = String(direct)
+        if (asString.trim().length) return asString
+      }
+      return match
     })
-    return result
-  }
+  }, [templateLanguage])
 
   // Enhanced function to handle rich text HTML content
   const replaceVariablesInHTML = (htmlText, values, fallbackPlainText = '') => {
@@ -2842,7 +2869,7 @@ function App() {
   }
 
   // Replace variables in text using current state
-  const replaceVariables = (text) => replaceVariablesWithValues(text, variables)
+  const replaceVariables = (text) => replaceVariablesWithValues(text)
 
   // Sync from text: Extract variable values from text areas back to Variables Editor
   const syncFromText = useCallback(() => {
@@ -2954,11 +2981,16 @@ function App() {
 
       variablesRef.current = initialVars
       setVariables(initialVars)
+      finalSubjectRef.current = subjectTemplate
+      finalBodyRef.current = bodyTemplate
       setFinalSubject(subjectTemplate)
       setFinalBody(bodyTemplate)
       manualEditRef.current = { subject: false, body: false }
       console.log('🔄 Variables state and ref updated with initial/sample values')
     } else {
+      variablesRef.current = {}
+      finalSubjectRef.current = ''
+      finalBodyRef.current = ''
       setVariables({})
       setFinalSubject('')
       setFinalBody('')
@@ -2993,7 +3025,9 @@ function App() {
           changed = true
         }
       }
-      return changed ? next : prev
+      if (!changed) return prev
+      variablesRef.current = next
+      return next
     })
   }, [selectedTemplate, templateLanguage])
 
@@ -3028,16 +3062,6 @@ function App() {
     let htmlContent = ''
     let textContent = ''
     
-    // Content selection based on requested type
-    const resolvedSubject = replaceVariablesWithValues(finalSubject, variables)
-    const resolvedBodyText = replaceVariablesWithValues(finalBody, variables)
-    const bodyHtmlSource = bodyEditorRef.current?.getHtml?.() ?? finalBody
-    const subjectHtmlSource = subjectEditorRef.current?.getHtml?.() ?? toSimpleHtml(resolvedSubject)
-    const bodyResult = replaceVariablesInHTML(bodyHtmlSource, variables, resolvedBodyText)
-
-    // Also compute subject HTML result to preserve inline pill formatting for subject copies
-    const subjectResult = replaceVariablesInHTML(subjectHtmlSource, variables, resolvedSubject)
-
     const toSimpleHtml = (plain = '') => String(plain ?? '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -3046,6 +3070,20 @@ function App() {
       .replace(/'/g, '&#39;')
       .replace(/\r\n|\r/g, '\n')
       .replace(/\n/g, '<br>')
+
+    const latestVariables = variablesRef.current || variables || {}
+    const subjectSource = finalSubjectRef.current ?? finalSubject
+    const bodySource = finalBodyRef.current ?? finalBody
+
+    // Content selection based on requested type
+    const resolvedSubject = replaceVariablesWithValues(subjectSource, latestVariables)
+    const resolvedBodyText = replaceVariablesWithValues(bodySource, latestVariables)
+    const bodyHtmlSource = bodyEditorRef.current?.getHtml?.() ?? bodySource
+    const subjectHtmlSource = subjectEditorRef.current?.getHtml?.() ?? toSimpleHtml(resolvedSubject)
+    const bodyResult = replaceVariablesInHTML(bodyHtmlSource, latestVariables, resolvedBodyText)
+
+    // Also compute subject HTML result to preserve inline pill formatting for subject copies
+    const subjectResult = replaceVariablesInHTML(subjectHtmlSource, latestVariables, resolvedSubject)
 
     switch (type) {
       case 'subject':
@@ -3187,16 +3225,26 @@ ${bodyResult.html}
 
   // Export helpers for .eml, HTML, and copy HTML
   const exportAs = async (mode) => {
-    const subject = finalSubject || ''
-    const bodyText = finalBody || ''
+    const toSimpleHtml = (plain = '') => String(plain ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/\r\n|\r/g, '\n')
+      .replace(/\n/g, '<br>')
+
+    const latestVariables = variablesRef.current || variables || {}
+    const subjectSource = finalSubjectRef.current ?? finalSubject
+    const bodySource = finalBodyRef.current ?? finalBody
     
     // Get rich HTML from editor (same as copy function)
-    const resolvedSubject = replaceVariablesWithValues(finalSubject, variables)
-    const resolvedBodyText = replaceVariablesWithValues(finalBody, variables)
-    const bodyHtmlSource = bodyEditorRef.current?.getHtml?.() ?? finalBody
+    const resolvedSubject = replaceVariablesWithValues(subjectSource, latestVariables)
+    const resolvedBodyText = replaceVariablesWithValues(bodySource, latestVariables)
+    const bodyHtmlSource = bodyEditorRef.current?.getHtml?.() ?? bodySource
     const subjectHtmlSource = subjectEditorRef.current?.getHtml?.() ?? toSimpleHtml(resolvedSubject)
-    const bodyResult = replaceVariablesInHTML(bodyHtmlSource, variables, resolvedBodyText)
-    const subjectResult = replaceVariablesInHTML(subjectHtmlSource, variables, resolvedSubject)
+    const bodyResult = replaceVariablesInHTML(bodyHtmlSource, latestVariables, resolvedBodyText)
+    const subjectResult = replaceVariablesInHTML(subjectHtmlSource, latestVariables, resolvedSubject)
 
     if (mode === 'eml') {
       // Build a proper multipart .eml with both plain text and HTML (rich formatting)
@@ -3633,10 +3681,13 @@ ${cleanBodyHtml}
   // Compose helper: plain-text mailto fallback
   const composePlainTextEmailDraft = () => {
     // Use mailto so we at least open a draft with plain text content
-    const resolvedSubject = replaceVariablesWithValues(finalSubject, variables) || ''
-    const bodyHtmlSource = bodyEditorRef.current?.getHtml?.() ?? finalBody
-    const resolvedBodyText = replaceVariablesWithValues(finalBody, variables) || ''
-    const bodyResult = replaceVariablesInHTML(bodyHtmlSource, variables, resolvedBodyText)
+    const latestVariables = variablesRef.current || variables || {}
+    const subjectSource = finalSubjectRef.current ?? finalSubject
+    const bodySource = finalBodyRef.current ?? finalBody
+    const resolvedSubject = replaceVariablesWithValues(subjectSource, latestVariables) || ''
+    const bodyHtmlSource = bodyEditorRef.current?.getHtml?.() ?? bodySource
+    const resolvedBodyText = replaceVariablesWithValues(bodySource, latestVariables) || ''
+    const bodyResult = replaceVariablesInHTML(bodyHtmlSource, latestVariables, resolvedBodyText)
 
     const plainBody = (bodyResult.text || resolvedBodyText || '')
       .replace(/\r?\n/g, '\r\n')
@@ -3830,7 +3881,7 @@ ${cleanBodyHtml}
   </Button>
 
   {/* Main content with resizable panes - full width */}
-  <main className="w-full max-w-none px-3 sm:px-4 lg:px-6 py-5">
+  <main className="w-full max-w-none px-3 sm:px-4 lg:px-6 py-5 pb-24">
   {/* Data integrity banner: show when templates failed to load */}
   {!loading && (!templatesData || !Array.isArray(templatesData.templates) || templatesData.templates.length === 0) && (
     <div className="mb-6 p-4 rounded-lg border-2 border-amber-300 bg-amber-50 text-amber-900 shadow-sm">
@@ -3865,7 +3916,7 @@ ${cleanBodyHtml}
     </div>
     {/* Left panel - Template list (resizable) */}
     <div className="hidden md:block shrink-0" style={{ width: leftWidth }}>
-      <Card className="h-fit card-soft border-0 overflow-hidden rounded-[14px]" style={{ background: '#ffffff', height: 'calc(100vh - 160px)', display: 'flex', flexDirection: 'column' }}>
+      <Card className="h-fit card-soft border-0 overflow-hidden rounded-[14px]" style={{ background: '#ffffff', height: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column' }}>
         <CardContent className="p-0 flex flex-col h-full" style={{ padding: 0 }}>
           {/* Fixed header section */}
           <div className="flex-shrink-0 px-0 pt-0 pb-2 bg-white">
@@ -4306,7 +4357,12 @@ ${cleanBodyHtml}
                         key={`subject-${selectedTemplate?.id || 'none'}-${templateLanguage}`}
                         ref={subjectEditorRef}
                         value={finalSubject}
-                        onChange={(e) => { setFinalSubject(e.target.value); manualEditRef.current.subject = true; }}
+                        onChange={(e) => {
+                          const nextValue = e.target.value
+                          finalSubjectRef.current = nextValue
+                          setFinalSubject(nextValue)
+                          manualEditRef.current.subject = true
+                        }}
                         variables={variables}
                         templateLanguage={templateLanguage}
                         placeholder={getPlaceholderText()}
@@ -4344,7 +4400,12 @@ ${cleanBodyHtml}
                       <RichTextPillEditor
                         key={`body-${selectedTemplate?.id || 'none'}-${templateLanguage}`}
                         value={finalBody}
-                        onChange={(e) => { setFinalBody(e.target.value); manualEditRef.current.body = true; }}
+                        onChange={(e) => {
+                          const nextValue = e.target.value
+                          finalBodyRef.current = nextValue
+                          setFinalBody(nextValue)
+                          manualEditRef.current.body = true
+                        }}
                         ref={bodyEditorRef}
                         variables={variables}
                         templateLanguage={templateLanguage}
@@ -5116,6 +5177,7 @@ ${cleanBodyHtml}
                 onResult={setFinalBody}
                 variables={variables}
                 interfaceLanguage={interfaceLanguage}
+                templateLanguage={templateLanguage}
               />
             </div>
           </div>

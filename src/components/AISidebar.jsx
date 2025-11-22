@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card.jsx'
 import { Button } from './ui/button.jsx'
 import { Textarea } from './ui/textarea.jsx'
-import { Sparkles, Copy, CheckCircle, Lightbulb, Zap, Globe, Keyboard, ExternalLink, Info } from 'lucide-react'
+import { Sparkles, Copy, CheckCircle, Lightbulb, Zap, Globe, ExternalLink, Info } from 'lucide-react'
+import { resolveVariableValue as resolveCanonicalVar } from '../utils/variables'
 
 const ACTIONS = {
   improve: { icon: Sparkles, color: 'from-slate-600 to-slate-700' },
@@ -109,7 +110,7 @@ const TEXT = {
   }
 }
 
-const AISidebar = ({ emailText, onResult, variables, interfaceLanguage = 'fr' }) => {
+const AISidebar = ({ emailText, onResult, variables, interfaceLanguage = 'fr', templateLanguage = 'fr' }) => {
   const [copiedPrompt, setCopiedPrompt] = useState(null)
   const [customPrompt, setCustomPrompt] = useState('')
   const [customCopied, setCustomCopied] = useState(false)
@@ -124,15 +125,37 @@ const AISidebar = ({ emailText, onResult, variables, interfaceLanguage = 'fr' })
     setIsEdgeDetected(userAgent.includes('Edg/'))
   }, [])
 
+  const decodeHtmlEntities = (value = '') => String(value ?? '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+
+  const sanitizeResolvedValue = (value = '') => {
+    const decoded = decodeHtmlEntities(value)
+    const trimmed = decoded.trim()
+    if (!trimmed) return ''
+    return trimmed.replace(/[<>]/g, '')
+  }
+
+  const stripResidualAngleBrackets = (input = '') => {
+    if (!input) return ''
+    const htmlTagPattern = /^\/?\s*(?:div|p|br|span|strong|b|em|i|u|ul|ol|li|h[1-6]|table|tbody|thead|tr|td|th|a|img|section|article|header|footer)\b/i
+    return String(input).replace(/<([^<>]+)>/g, (match, inner) => {
+      if (htmlTagPattern.test(inner)) return match
+      return inner
+    })
+  }
+
   const resolveVariableValue = (varName = '') => {
     if (!varName) return ''
-    const key = varName.trim()
-    if (!key) return ''
-    const direct = variables?.[key]
-    if (direct && String(direct).trim()) return String(direct).trim()
-    // Try lowercase fallback (in case of casing mismatches)
-    const lower = variables?.[key.toLowerCase()]
-    if (lower && String(lower).trim()) return String(lower).trim()
+    const resolved = resolveCanonicalVar(variables || {}, varName, templateLanguage) || ''
+    if (resolved && resolved.trim().length) return sanitizeResolvedValue(resolved)
+    const direct = variables?.[varName]
+    if (direct && String(direct).trim().length) return sanitizeResolvedValue(direct)
+    const lower = variables?.[String(varName).toLowerCase()]
+    if (lower && String(lower).trim().length) return sanitizeResolvedValue(lower)
     return ''
   }
 
@@ -148,12 +171,7 @@ const AISidebar = ({ emailText, onResult, variables, interfaceLanguage = 'fr' })
   const convertPillsToText = (htmlText) => {
     if (!htmlText) return ''
 
-    const decodeHtml = (text) => text
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
+    const decodeHtml = decodeHtmlEntities
 
     const decodedRaw = decodeHtml(htmlText)
 
@@ -167,23 +185,14 @@ const AISidebar = ({ emailText, onResult, variables, interfaceLanguage = 'fr' })
         .replace(/\s+\n/g, '\n')
         .replace(/\n{2,}/g, '\n')
         .trim()
-      return injectVariableValues(cleaned)
+      return stripResidualAngleBrackets(injectVariableValues(cleaned))
     }
 
     // Fallback: parse HTML and replace spans with data-var attributes
     const tempDiv = document.createElement('div')
     tempDiv.innerHTML = htmlText
 
-    const normalizeValue = (value) => {
-      if (!value) return ''
-      return value
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&amp;/g, '&')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .trim()
-    }
+    const normalizeValue = (value) => sanitizeResolvedValue(value)
 
     const toPlainText = (node) => {
       let text = ''
@@ -195,10 +204,11 @@ const AISidebar = ({ emailText, onResult, variables, interfaceLanguage = 'fr' })
         } else if (child.nodeType === Node.ELEMENT_NODE) {
           const varName = child.getAttribute('data-var')
           if (varName) {
-            const pillValue = normalizeValue(child.getAttribute('data-value'))
-              || normalizeValue(child.getAttribute('data-display'))
+            const resolvedValue = resolveVariableValue(varName)
+            const pillValue = normalizeValue(child.getAttribute('data-display'))
+              || normalizeValue(child.getAttribute('data-value'))
               || normalizeValue(child.textContent)
-            const rendered = pillValue || `<<${varName}>>`
+            const rendered = resolvedValue || pillValue || `<<${varName}>>`
             text += rendered
           } else if (child.tagName === 'BR') {
             text += '\n'
@@ -212,7 +222,7 @@ const AISidebar = ({ emailText, onResult, variables, interfaceLanguage = 'fr' })
     }
 
     const fallbackText = toPlainText(tempDiv).replace(/\s+\n/g, '\n').replace(/\n{2,}/g, '\n').trim()
-    return injectVariableValues(fallbackText)
+    return stripResidualAngleBrackets(injectVariableValues(fallbackText))
   }
 
   // Generate prompts with localized instructions

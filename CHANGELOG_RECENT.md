@@ -1,3 +1,36 @@
+# Recent Changes - November 21, 2025
+
+## Live Variable Sync & Copy Reliability
+- **Synchronized refs**: `variablesRef`, `finalSubjectRef`, and `finalBodyRef` now mirror every variable update, ensuring copy/export operations always use the latest pill values.
+- **Centralized resolver**: `replaceVariablesWithValues` now pulls directly from the canonical resolver and respects template language, eliminating stale placeholders.
+- **Broadcast updates**: Popout broadcasts update `variablesRef` immediately so remote edits and focus changes stay in lockstep with the main editor.
+- **Mailto/export parity**: `.eml`, HTML export, and Outlook launch flows reuse the same resolved values, so rich/plain text outputs stay aligned.
+
+## Copilot Prompt Clean-Up
+- **Canonical resolution**: Copilot sidebar now feeds prompts through `resolveVariableValue`, guaranteeing bilingual variables expand correctly.
+- **Placeholder stripping**: Added sanitizers to convert stray `<var>` markers into `<<var>>` and remove orphaned angle brackets without touching real HTML tags.
+- **Entity decoding**: HTML entities from the editors decode before prompting, preventing sequences like `&lt;3&gt;` from leaking into Copilot requests.
+- **Custom prompts**: Personalized instructions inherit the same sanitized text, so manual prompts stay clean as well.
+
+## Interface & UX Updates
+- **Template rail height**: Left-hand list expands to `calc(100vh - 40px)` for better vertical parity with the composer.
+- **Content padding**: Main layout adds bottom padding to prevent buttons from hugging the viewport edge on shorter screens.
+- **Variables popout**: Defaults to a two-column grid, showcasing the Translation Bureau card layout requested earlier.
+- **Help centre copy**: Updated examples (names, emails, category hints) to Government of Canada context; added Lucide `Sparkles` icon for Copilot section cohesion.
+
+## Category Palette Refresh
+- Categories now map to the new government-specific taxonomy (quotes, delivery, terminology, security, etc.) with tuned badge colours.
+- Custom colour overrides remain supported; entries fall back to the refreshed palette when no override exists.
+
+## Regression Watch / Testing
+- ✅ `npm run build`
+- ✅ Verify Copy Subject / Copy Body / Copy All with live pill edits
+- ✅ Test Copilot quick actions and custom prompt for placeholder-free output
+- ✅ Open Variables popout, edit values, confirm sync back to main editor in real time
+- ✅ Export `.eml` and HTML drafts to ensure resolved content carries through
+
+---
+
 # Recent Changes - November 4, 2025
 
 ## Rich Text Editor Enhancements

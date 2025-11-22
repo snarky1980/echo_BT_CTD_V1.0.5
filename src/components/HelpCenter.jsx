@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { LifeBuoy, Lightbulb, BookOpen, AlertTriangle, MessageCircle, ExternalLink, Mail, X, CheckCircle2, Loader2, Copy, Star, Shield } from 'lucide-react'
+import { LifeBuoy, Lightbulb, BookOpen, AlertTriangle, MessageCircle, ExternalLink, Mail, X, CheckCircle2, Loader2, Copy, Star, Shield, Sparkles } from 'lucide-react'
 import { Button } from './ui/button.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card.jsx'
 import { ScrollArea } from './ui/scroll-area.jsx'
@@ -175,9 +175,9 @@ const translations = {
       ],
       form: {
         nameLabel: 'Nom complet',
-  namePlaceholder: 'Ex. Jeanne Tremblay',
+  namePlaceholder: 'Ex. Marie Dubois',
     emailLabel: 'Courriel professionnel',
-  emailPlaceholder: 'prenom.nom@moncourriel.com',
+  emailPlaceholder: 'prenom.nom@tpsgc-pwgsc.gc.ca',
         messageLabelFallback: 'Message',
         optional: '(facultatif)',
         submit: 'Envoyer la demande',
@@ -364,9 +364,9 @@ const translations = {
       ],
       form: {
         nameLabel: 'Full name',
-  namePlaceholder: 'e.g. Jordan Lee',
+  namePlaceholder: 'e.g. Sarah Thompson',
     emailLabel: 'Work email',
-  emailPlaceholder: 'firstname.lastname@myemail.com',
+  emailPlaceholder: 'firstname.lastname@tpsgc-pwgsc.gc.ca',
         messageLabelFallback: 'Message',
         optional: '(optional)',
         submit: 'Send request',
@@ -1071,7 +1071,7 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'j
                           <Input
                             value={templateDetails.category}
                             onChange={(e) => setTemplateDetails((p) => ({ ...p, category: e.target.value }))}
-                            placeholder={language === 'fr' ? 'Ex. Voyages, RH, IT' : 'e.g., Travel, HR, IT'}
+                            placeholder={language === 'fr' ? 'Ex. Traduction, Délais, Facturation' : 'e.g., Translation, Deadlines, Billing'}
                           />
                         </label>
                       </div>
