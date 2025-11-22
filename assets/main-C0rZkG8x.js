@@ -20305,6 +20305,20 @@ function App() {
           const next = { ...msg.allVariables };
           variablesRef.current = next;
           setVariables(next);
+          try {
+            Object.entries(next).forEach(([k, v]) => {
+              if (v === "__DELETED__") {
+                const base = k.replace(/_(FR|EN)$/i, "");
+                document.querySelectorAll(".var-pill").forEach((pill) => {
+                  const pv = pill.getAttribute("data-var") || "";
+                  if (pv === k || pv.replace(/_(FR|EN)$/i, "") === base) {
+                    pill.remove();
+                  }
+                });
+              }
+            });
+          } catch {
+          }
           return;
         }
         if (msg.type === "variableDeleted" && msg.varName) {
@@ -20327,6 +20341,16 @@ function App() {
               finalBodyRef.current = updated;
               return updated;
             });
+            try {
+              const baseName = varName.replace(/_(FR|EN)$/i, "");
+              document.querySelectorAll(".var-pill").forEach((pill) => {
+                const pv = pill.getAttribute("data-var") || "";
+                if (pv === varName || pv.replace(/_(FR|EN)$/i, "") === baseName) {
+                  pill.remove();
+                }
+              });
+            } catch {
+            }
           }
           return;
         }
@@ -24457,4 +24481,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-BqBS1Ph1.js.map
+//# sourceMappingURL=main-C0rZkG8x.js.map
