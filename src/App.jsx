@@ -2670,8 +2670,9 @@ function App() {
     const language = (templateLanguageRef.current || templateLanguage || 'fr')
     return String(text ?? '').replace(/<<([^>]+)>>/g, (match, varName) => {
       const resolved = resolveVariableValue(sourceValues, varName, language)
+      // If variable is deleted, remove the placeholder entirely
       if (resolved === '__DELETED__') {
-        return match
+        return ''
       }
       if (resolved && resolved.trim().length) {
         return resolved
@@ -2680,7 +2681,7 @@ function App() {
       if (direct !== undefined && direct !== null) {
         const asString = String(direct)
         if (asString === '__DELETED__') {
-          return match
+          return ''
         }
         if (asString.trim().length) return asString
       }
