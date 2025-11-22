@@ -23961,7 +23961,7 @@ function VariablesPopout({
           onMouseLeave: () => notifyHoverChange(null),
           children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "ea-popout-card-inner rounded-lg p-2", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-2 flex items-start justify-between gap-3", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { htmlFor: sanitizedVarId, className: "text-sm font-semibold text-gray-900 flex-1 leading-tight", children: ((_b = varInfo.description) == null ? void 0 : _b[langForDisplay]) || ((_c = varInfo.description) == null ? void 0 : _c.fr) || ((_d = varInfo.description) == null ? void 0 : _d.en) || varName }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("label", { htmlFor: sanitizedVarId, className: "text-sm font-semibold text-gray-900 flex-1 leading-tight overflow-hidden", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "truncate", children: ((_b = varInfo.description) == null ? void 0 : _b[langForDisplay]) || ((_c = varInfo.description) == null ? void 0 : _c.fr) || ((_d = varInfo.description) == null ? void 0 : _d.en) || varName }) }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "shrink-0 flex items-center gap-1 opacity-0 hover:opacity-100 focus-within:opacity-100 transition-opacity", children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsxs(
                   "button",
@@ -24457,4 +24457,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-DAmpHWzt.js.map
+//# sourceMappingURL=main-Du3HNhNS.js.map
