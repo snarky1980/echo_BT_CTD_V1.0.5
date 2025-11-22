@@ -20129,20 +20129,27 @@ function App() {
     }
   }, [selectedTemplateId, templateLanguage]);
   reactExports.useCallback(() => {
-    var _a2, _b, _c, _d, _e;
+    var _a2, _b, _c, _d, _e, _f;
     if (preferPopout && ((_a2 = selectedTemplate == null ? void 0 : selectedTemplate.variables) == null ? void 0 : _a2.length) > 0) {
       const url = new URL(window.location.href);
       url.searchParams.set("varsOnly", "1");
       if (selectedTemplate == null ? void 0 : selectedTemplate.id) url.searchParams.set("id", selectedTemplate.id);
       if (templateLanguage) url.searchParams.set("lang", templateLanguage);
-      let w = 450;
-      let h = 700;
-      const availW = (((_b = window.screen) == null ? void 0 : _b.availWidth) || window.innerWidth) - 40;
-      const availH = (((_c = window.screen) == null ? void 0 : _c.availHeight) || window.innerHeight) - 80;
+      const varCount = ((_b = selectedTemplate == null ? void 0 : selectedTemplate.variables) == null ? void 0 : _b.length) || 0;
+      const savedColumns = parseInt(localStorage.getItem("ea_popout_columns") || "2", 10);
+      const colWidth = 320;
+      const cardHeight = 120;
+      const headerHeight = 60;
+      const padding = 40;
+      let w = Math.max(380, colWidth * savedColumns + padding);
+      const rows = Math.ceil(varCount / savedColumns);
+      let h = Math.max(400, Math.min(900, headerHeight + rows * cardHeight + padding));
+      const availW = (((_c = window.screen) == null ? void 0 : _c.availWidth) || window.innerWidth) - 40;
+      const availH = (((_d = window.screen) == null ? void 0 : _d.availHeight) || window.innerHeight) - 80;
       w = Math.min(w, availW);
-      h = Math.min(Math.max(500, h), availH);
-      const left = Math.max(0, Math.floor(((((_d = window.screen) == null ? void 0 : _d.availWidth) || window.innerWidth) - w) / 2));
-      const top = Math.max(0, Math.floor(((((_e = window.screen) == null ? void 0 : _e.availHeight) || window.innerHeight) - h) / 3));
+      h = Math.min(h, availH);
+      const left = Math.max(0, Math.floor(((((_e = window.screen) == null ? void 0 : _e.availWidth) || window.innerWidth) - w) / 2));
+      const top = Math.max(0, Math.floor(((((_f = window.screen) == null ? void 0 : _f.availHeight) || window.innerHeight) - h) / 3));
       const features = `popup=yes,width=${Math.round(w)},height=${Math.round(h)},left=${left},top=${top},toolbar=0,location=0,menubar=0,status=0,scrollbars=1,resizable=1,alwaysRaised=yes`;
       const win = window.open("", "_blank", features);
       if (win) {
@@ -23598,6 +23605,14 @@ function VariablesPopout({
       return false;
     }
   });
+  const [columns, setColumns] = reactExports.useState(() => {
+    try {
+      const saved = localStorage.getItem("ea_popout_columns");
+      return saved ? parseInt(saved, 10) : 2;
+    } catch {
+      return 2;
+    }
+  });
   console.log("🔍 VariablesPopout initialized with variables:", variables2);
   const [focusedVar, setFocusedVar] = reactExports.useState(null);
   const channelRef = reactExports.useRef(null);
@@ -23620,6 +23635,13 @@ function VariablesPopout({
       window.focus();
     }
   }, [isPinned]);
+  reactExports.useEffect(() => {
+    try {
+      localStorage.setItem("ea_popout_columns", String(columns));
+    } catch (err) {
+      console.warn("Failed to persist popout columns:", err);
+    }
+  }, [columns]);
   reactExports.useEffect(() => {
     if (!isPinned) return;
     let focusThrottle = false;
@@ -23938,13 +23960,15 @@ function VariablesPopout({
     reinitialize: "Réinitialiser",
     clear: "Supprimer",
     close: "Fermer",
-    pin: ({ pinned }) => pinned ? "Épinglé • cette fenêtre reste devant" : "Épingler cette fenêtre"
+    pin: ({ pinned }) => pinned ? "Épinglé • cette fenêtre reste devant" : "Épingler cette fenêtre",
+    columns: "Colonnes"
   } : {
     title: "Edit Variables",
     reinitialize: "Reinitialize",
     clear: "Delete",
     close: "Close",
-    pin: ({ pinned }) => pinned ? "Pinned • window stays on top" : "Pin this window"
+    pin: ({ pinned }) => pinned ? "Pinned • window stays on top" : "Pin this window",
+    columns: "Columns"
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen bg-white", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs(
@@ -23961,6 +23985,16 @@ function VariablesPopout({
             /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-lg font-bold text-white", children: t.title })
           ] }) }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-1 bg-white/10 rounded-lg p-1", children: [1, 2, 3].map((num) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                onClick: () => setColumns(num),
+                className: `px-3 py-1 rounded text-sm font-medium transition-all ${columns === num ? "bg-white text-slate-800" : "text-white/70 hover:text-white hover:bg-white/10"}`,
+                title: `${num} ${t.columns.toLowerCase()}`,
+                children: num
+              },
+              num
+            )) }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs(
               "button",
               {
@@ -23986,7 +24020,7 @@ function VariablesPopout({
         ]
       }
     ),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "py-2 px-5", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-2 gap-3", style: { width: "100%", minWidth: 0 }, children: (() => {
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "py-2 px-5", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `grid gap-3`, style: { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, width: "100%", minWidth: 0 }, children: (() => {
       var _a, _b;
       const subjectText = ((_a = selectedTemplate == null ? void 0 : selectedTemplate.subject) == null ? void 0 : _a[templateLanguage]) || "";
       const bodyText = ((_b = selectedTemplate == null ? void 0 : selectedTemplate.body) == null ? void 0 : _b[templateLanguage]) || "";
@@ -24529,4 +24563,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-CeoddpWD.js.map
+//# sourceMappingURL=main-BzTetYex.js.map
