@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Edit3, X, RotateCcw, Pin, PinOff } from 'lucide-react'
+import { Edit3, X, RotateCcw } from 'lucide-react'
 import {
   LANGUAGE_SUFFIXES,
   expandVariableAssignment,
@@ -126,13 +126,6 @@ export default function VariablesPopout({
   const getVarValue = useCallback((name = '') => {
     return resolveVariableValue(variables, name, templateLanguage)
   }, [variables, templateLanguage])
-  const [isPinned, setIsPinned] = useState(() => {
-    try {
-      return localStorage.getItem('ea_popout_pinned') === 'true'
-    } catch {
-      return false
-    }
-  })
   const [columns, setColumns] = useState(2)
 
   // Auto-adjust columns based on window width
@@ -169,122 +162,8 @@ export default function VariablesPopout({
   useEffect(() => {
     focusedVarRef.current = focusedVar
   }, [focusedVar])
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('ea_popout_pinned', String(isPinned))
-    } catch (err) {
-      console.warn('Failed to persist popout pin state:', err)
-    }
-    if (isPinned) {
-      window.focus()
-    }
-  }, [isPinned])
-
-  useEffect(() => {
-    if (!isPinned) return
-
-    let focusThrottle = false
-    let lastFocusAttempt = 0
-
-    const refocus = () => {
-      if (!isPinned || focusThrottle) return
       
-      const now = Date.now()
-      if (now - lastFocusAttempt < 50) return // Debounce rapid attempts
-      
-      lastFocusAttempt = now
-      focusThrottle = true
-      
-      requestAnimationFrame(() => {
-        try {
-          // Aggressively bring window to front
-          window.focus()
-          
-          // Try multiple approaches for cross-browser/multi-monitor support
-          if (window.opener && !window.opener.closed) {
-            try {
-              window.opener.focus()
-              setTimeout(() => window.focus(), 10)
-            } catch {}
-          }
-        } catch {}
-        
-        setTimeout(() => { focusThrottle = false }, 100)
-      })
-    }
 
-    // Handle window blur (when clicking anywhere outside)
-    const handleBlur = () => {
-      if (!isPinned) return
-      // Immediately try to regain focus when window loses it
-      setTimeout(refocus, 0)
-      setTimeout(refocus, 50) // Second attempt for stubborn cases
-    }
-
-    // Handle visibility changes (switching tabs, minimizing, etc.)
-    const handleVisibility = () => {
-      if (document.visibilityState === 'hidden' && isPinned) {
-        setTimeout(refocus, 0)
-      }
-    }
-
-    // Handle mouse leaving the window
-    const handleMouseLeave = (e) => {
-      if (!isPinned) return
-      // Check if mouse actually left the window bounds
-      if (e.clientY <= 0 || e.clientX <= 0 || 
-          e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
-        setTimeout(refocus, 0)
-      }
-    }
-
-    // Handle clicks on the parent window or other windows
-    const handleParentActivity = () => {
-      if (!isPinned) return
-      setTimeout(refocus, 0)
-    }
-
-    window.addEventListener('blur', handleBlur, { capture: true })
-    document.addEventListener('visibilitychange', handleVisibility)
-    document.addEventListener('mouseleave', handleMouseLeave)
-    
-    // Listen for activity in the opener window
-    if (window.opener && !window.opener.closed) {
-      try {
-        window.opener.addEventListener('mousedown', handleParentActivity, { capture: true })
-        window.opener.addEventListener('focus', handleParentActivity, { capture: true })
-      } catch {}
-    }
-
-    // Aggressive periodic check to ensure window stays on top
-    const intervalId = setInterval(() => {
-      if (!isPinned) return
-      
-      // Check if we're truly focused
-      if (document.visibilityState === 'hidden' || !document.hasFocus()) {
-        refocus()
-      }
-    }, 500) // More frequent checks
-
-    // Initial focus when pin is activated
-    refocus()
-
-    return () => {
-      window.removeEventListener('blur', handleBlur, { capture: true })
-      document.removeEventListener('visibilitychange', handleVisibility)
-      document.removeEventListener('mouseleave', handleMouseLeave)
-      
-      if (window.opener && !window.opener.closed) {
-        try {
-          window.opener.removeEventListener('mousedown', handleParentActivity, { capture: true })
-          window.opener.removeEventListener('focus', handleParentActivity, { capture: true })
-        } catch {}
-      }
-      
-      clearInterval(intervalId)
-    }
-  }, [isPinned])
 
   const notifyFocusChange = (varName, broadcast = true) => {
     const nextRaw = varName ?? null
@@ -570,14 +449,12 @@ export default function VariablesPopout({
     title: 'Modifier les variables',
     reinitialize: 'Réinitialiser',
     clear: 'Supprimer',
-    close: 'Fermer',
-    pin: ({ pinned }) => pinned ? 'Épinglé • cette fenêtre reste devant' : 'Épingler cette fenêtre'
+    close: 'Fermer'
   } : {
     title: 'Edit Variables',
     reinitialize: 'Reinitialize',
     clear: 'Delete',
-    close: 'Close',
-    pin: ({ pinned }) => pinned ? 'Pinned • window stays on top' : 'Pin this window'
+    close: 'Close'
   }
 
   return (
@@ -598,18 +475,6 @@ export default function VariablesPopout({
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsPinned((prev) => !prev)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all font-medium text-sm ${
-              isPinned 
-                ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
-                : 'bg-white/10 text-white hover:bg-white/20'
-            }`}
-            title={t.pin({ pinned: isPinned })}
-          >
-            {isPinned ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
-            <span>{isPinned ? (interfaceLanguage === 'fr' ? 'Épinglé' : 'Pinned') : (interfaceLanguage === 'fr' ? 'Épingler' : 'Pin')}</span>
-          </button>
           <button
             onClick={() => window.close()}
             className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
