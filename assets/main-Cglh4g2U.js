@@ -12963,8 +12963,7 @@ const translations = {
         heading: "Confidentialité & stockage",
         points: [
           "Tout fonctionne localement dans votre navigateur. Aucune donnée n'est envoyée à un serveur, sauf si vous soumettez le formulaire de contact.",
-          "Les préférences (langues, favoris, etc.) et les variables en cours sont sauvegardées en local.",
-          "Exportez vos modèles JSON pour sauvegarder ou partager vos modifications."
+          "Les préférences (langues, favoris, etc.) et les variables en cours sont sauvegardées en local."
         ]
       }
     },
@@ -12972,16 +12971,12 @@ const translations = {
       heading: "Questions fréquentes",
       items: [
         {
-          question: "Comment garder le popup Variables à l'écran ?",
-          answer: "Cliquez sur l'icône d'épingle. Quand elle est active, le panneau reste ouvert même si vous interagissez ailleurs dans l'application."
-        },
-        {
           question: "Les valeurs du popup correspondent-elles toujours au texte ?",
           answer: "Oui. À l'ouverture, le popup synchronise immédiatement les valeurs actuelles grâce à l'extraction directe de l'objet et du message. Les modifications faites dans le texte sont détectées automatiquement."
         },
         {
-          question: "Comment revenir à l'écran « Sélectionner un modèle » ?",
-          answer: "Par défaut, ECHO n'ouvre plus automatiquement un modèle au premier chargement. Si vous souhaitez repartir d'un état vierge, utilisez l'URL avec ?reset=1 (ex. https://.../index.html?reset=1)."
+          question: "Comment utiliser les boutons X et Réinitialiser sur les cartes de variables ?",
+          answer: "Le bouton X supprime la pastille de la variable du texte de votre courriel. Le bouton Réinitialiser restaure la variable avec sa valeur d'exemple d'origine et réinsère la pastille dans le texte."
         },
         {
           question: "Comment revenir aux valeurs par défaut ?",
@@ -13152,8 +13147,7 @@ const translations = {
         heading: "Privacy & storage",
         points: [
           "Everything runs locally in your browser. No data is sent to a server unless you submit the contact form.",
-          "Preferences (languages, favorites, etc.) and in-progress variables are saved in local storage.",
-          "Export your JSON templates to back up or share edits."
+          "Preferences (languages, favorites, etc.) and in-progress variables are saved in local storage."
         ]
       }
     },
@@ -13161,16 +13155,12 @@ const translations = {
       heading: "Frequently asked questions",
       items: [
         {
-          question: "How do I keep the Variables popout visible?",
-          answer: "Click the pin icon. When it's active, the panel stays open even if you interact elsewhere in the app."
-        },
-        {
           question: "Does the popout always match the main editors?",
           answer: "Yes. Opening the popout triggers an immediate sync that extracts the current subject and body. Text edits are auto-detected and reflected back."
         },
         {
-          question: "How do I get back to “Select a template”?",
-          answer: "By default, ECHO no longer auto-opens a template on first load. To start fresh, use the URL with ?reset=1 (e.g., https://.../index.html?reset=1)."
+          question: "How do I use the X and Reinitialize buttons on variable cards?",
+          answer: "The X button removes the variable pill from your email text. The Reinitialize button restores the variable with its original example value and reinserts the pill into the text."
         },
         {
           question: "How do I restore default example values?",
@@ -22292,7 +22282,7 @@ ${cleanBodyHtml}
               ]
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "hidden md:block shrink-0", style: { width: leftWidth }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Card, { className: "h-fit card-soft border-0 overflow-hidden rounded-[14px]", style: { background: "#ffffff", height: "calc(100vh - 40px)", display: "flex", flexDirection: "column" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(CardContent, { className: "p-0 flex flex-col h-full", style: { padding: 0 }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "hidden md:block shrink-0", style: { width: leftWidth }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Card, { className: "h-fit card-soft border-0 overflow-hidden rounded-[14px]", style: { background: "#ffffff", height: "100vh", display: "flex", flexDirection: "column" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(CardContent, { className: "p-0 flex flex-col h-full", style: { padding: 0 }, children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-shrink-0 px-0 pt-0 pb-2 bg-white", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-full px-4 flex items-center justify-center mb-3", style: { background: "var(--primary)", paddingTop: 10, paddingBottom: 10, minHeight: 48, borderTopLeftRadius: 14, borderTopRightRadius: 14, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-2xl font-bold text-white inline-flex items-center gap-2 leading-none whitespace-nowrap", children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { className: "h-6 w-6 text-white", "aria-hidden": "true" }),
@@ -24507,4 +24497,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-ByqhgMSA.js.map
+//# sourceMappingURL=main-Cglh4g2U.js.map
