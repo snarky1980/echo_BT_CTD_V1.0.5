@@ -567,7 +567,7 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'j
         extra: formData.extra.trim(),
         language,
         submittedAt: new Date().toISOString(),
-        product: 'ECHO'
+        product: 'ECHO-BT-CTD'
       }
 
       if (formData.category === 'template') {
@@ -624,8 +624,8 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'j
       console.error('Contact form submission failed, using mailto fallback:', error)
       
       // Fallback: Open mailto link with the form data
-      const subject = `ECHO ${formData.category}: ${formData.name}`
-      const body = `Name: ${formData.name}\nEmail: ${formData.email}\n\nCategory: ${formData.category}\n\nMessage:\n${formData.message}\n\n${formData.extra ? `Additional info:\n${formData.extra}\n\n` : ''}${formData.category === 'template' ? `\nTemplate Details:\nType: ${templateDetails.templateType}\nLanguages: ${Object.keys(templateDetails.languages).filter(k => templateDetails.languages[k]).join(', ')}\nTitle (FR): ${templateDetails.titleFr}\nTitle (EN): ${templateDetails.titleEn}\n` : ''}`
+      const subject = `ECHO-BT-CTD ${formData.category}: ${formData.name}`
+      const body = `Product: ECHO-BT-CTD\n\nName: ${formData.name}\nEmail: ${formData.email}\n\nCategory: ${formData.category}\n\nMessage:\n${formData.message}\n\n${formData.extra ? `Additional info:\n${formData.extra}\n\n` : ''}${formData.category === 'template' ? `\nTemplate Details:\nType: ${templateDetails.templateType}\nLanguages: ${Object.keys(templateDetails.languages).filter(k => templateDetails.languages[k]).join(', ')}\nTitle (FR): ${templateDetails.titleFr}\nTitle (EN): ${templateDetails.titleEn}\n` : ''}`
       
       const mailtoUrl = `mailto:${supportEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
       
