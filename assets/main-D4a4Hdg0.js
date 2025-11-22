@@ -7091,6 +7091,75 @@ const varKeysMatch = (a, b) => {
   if (!a || !b) return false;
   return normalizeVarKey(a) === normalizeVarKey(b);
 };
+const LANGUAGE_SUFFIXES = ["FR", "EN"];
+const toCanonicalVarKey = (name = "") => {
+  if (!name) return "";
+  const trimmed = String(name).trim();
+  if (!trimmed) return "";
+  const withoutAngles = trimmed.replace(/[<>]/g, "");
+  const withUnderscores = withoutAngles.replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2").replace(/[-\s]+/g, "_");
+  return withUnderscores.replace(/_{2,}/g, "_").replace(/^_+|_+$/g, "").toLowerCase();
+};
+const collectMatchingVariableKeys = (variables2 = {}, varName = "") => {
+  if (!variables2 || typeof variables2 !== "object") return [];
+  const target = normalizeVarKey(varName);
+  if (!target) return [];
+  const matches = [];
+  for (const key of Object.keys(variables2)) {
+    if (normalizeVarKey(key) === target) {
+      matches.push(key);
+    }
+  }
+  return matches;
+};
+const joinWithSuffix = (base = "", suffix = "") => {
+  if (!base) return "";
+  const trimmedBase = String(base).replace(/_+$/g, "");
+  const upperSuffix = String(suffix || "").toUpperCase();
+  if (!upperSuffix) return trimmedBase;
+  return `${trimmedBase}_${upperSuffix}`;
+};
+const expandVariableAssignment = (varName, rawValue, options = {}) => {
+  const assignments = {};
+  if (!varName) return assignments;
+  const value = rawValue == null ? "" : String(rawValue);
+  const preferredLanguage = (options == null ? void 0 : options.preferredLanguage) ? String(options.preferredLanguage).toUpperCase() : null;
+  const variables2 = (options == null ? void 0 : options.variables) && typeof options.variables === "object" ? options.variables : {};
+  normalizeVarKey(varName);
+  const suffixMatch = String(varName).match(/_(FR|EN)$/i);
+  const suffix = suffixMatch ? suffixMatch[1].toUpperCase() : null;
+  const baseOriginal = suffix ? String(varName).slice(0, -1 * (suffix.length + 1)) : String(varName);
+  const canonicalBase = toCanonicalVarKey(baseOriginal);
+  const addKey = (key) => {
+    if (!key) return;
+    const trimmedKey = String(key).trim();
+    if (!trimmedKey) return;
+    if (!Object.prototype.hasOwnProperty.call(assignments, trimmedKey)) {
+      assignments[trimmedKey] = value;
+    }
+  };
+  addKey(String(varName));
+  collectMatchingVariableKeys(variables2, varName).forEach(addKey);
+  if (suffix) {
+    addKey(baseOriginal);
+    if (canonicalBase) {
+      addKey(canonicalBase);
+      addKey(joinWithSuffix(canonicalBase, suffix));
+    }
+  } else {
+    if (canonicalBase) {
+      addKey(canonicalBase);
+    }
+    const suffixes = preferredLanguage && LANGUAGE_SUFFIXES.includes(preferredLanguage) ? [preferredLanguage] : LANGUAGE_SUFFIXES;
+    suffixes.forEach((suf) => {
+      addKey(joinWithSuffix(baseOriginal, suf));
+      if (canonicalBase) {
+        addKey(joinWithSuffix(canonicalBase, suf));
+      }
+    });
+  }
+  return assignments;
+};
 const resolveVariableValue = (variables2 = {}, name = "", templateLanguage = "fr") => {
   var _a, _b, _c, _d;
   if (!variables2 || typeof variables2 !== "object" || !name) return "";
@@ -9176,7 +9245,7 @@ const __iconNode$7 = [
   ["path", { d: "M4 17v2", key: "vumght" }],
   ["path", { d: "M5 18H3", key: "zchphs" }]
 ];
-const Sparkles$1 = createLucideIcon("sparkles", __iconNode$7);
+const Sparkles = createLucideIcon("sparkles", __iconNode$7);
 /**
  * @license lucide-react v0.510.0 - ISC
  *
@@ -9558,6 +9627,27 @@ const SimplePillEditor = React.forwardRef(({
   const getVarValue = reactExports.useCallback((name = "") => {
     return resolveVariableValue(variables2, name, templateLanguage);
   }, [variables2, templateLanguage]);
+  const clearActivePillPlaceholder = reactExports.useCallback(() => {
+    var _a, _b, _c, _d;
+    if (!editorRef.current) return false;
+    const selection = (_a = document.getSelection) == null ? void 0 : _a.call(document);
+    if (!(selection == null ? void 0 : selection.anchorNode)) return false;
+    const anchor = selection.anchorNode;
+    const pillElement = anchor.nodeType === Node.ELEMENT_NODE ? (_b = anchor.closest) == null ? void 0 : _b.call(anchor, ".var-pill") : (_d = (_c = anchor.parentElement) == null ? void 0 : _c.closest) == null ? void 0 : _d.call(_c, ".var-pill");
+    if (!pillElement) return false;
+    const varName = pillElement.getAttribute("data-var");
+    if (!varName) return false;
+    const placeholderToken = `<<${varName}>>`;
+    const currentText = (pillElement.textContent || "").trim();
+    if (currentText === placeholderToken) {
+      pillElement.textContent = "";
+      pillElement.setAttribute("data-display", "");
+      pillElement.classList.add("empty");
+      pillElement.classList.remove("filled");
+      return true;
+    }
+    return false;
+  }, []);
   const renderContent = (text) => {
     if (!text) return "";
     const regex = /<<([^>]+)>>/g;
@@ -9607,6 +9697,31 @@ const SimplePillEditor = React.forwardRef(({
     tracker.varName = varName;
     tracker.timestamp = now;
     requestAnimationFrame(() => selectEntirePill$1(pill));
+  }, []);
+  const syncSiblingPills = reactExports.useCallback((varName, newValue) => {
+    var _a, _b, _c, _d;
+    if (!editorRef.current || !varName) return;
+    const selection = (_a = document.getSelection) == null ? void 0 : _a.call(document);
+    let activePill = null;
+    if (selection == null ? void 0 : selection.anchorNode) {
+      const anchor = selection.anchorNode;
+      activePill = anchor.nodeType === Node.ELEMENT_NODE ? (_b = anchor.closest) == null ? void 0 : _b.call(anchor, ".var-pill") : (_d = (_c = anchor.parentElement) == null ? void 0 : _c.closest) == null ? void 0 : _d.call(_c, ".var-pill");
+    }
+    const normalizedValue = newValue ?? "";
+    const trimmed = normalizedValue.trim();
+    const displayValue = trimmed.length > 0 ? normalizedValue : `<<${varName}>>`;
+    const displayHtml = convertPlainTextToHtml$1(displayValue);
+    const isFilled = trimmed.length > 0;
+    editorRef.current.querySelectorAll(".var-pill").forEach((pill) => {
+      if (pill.getAttribute("data-var") !== varName) return;
+      if (activePill && pill === activePill) return;
+      if (pill.innerHTML !== displayHtml) {
+        pill.innerHTML = displayHtml;
+      }
+      pill.classList.toggle("filled", isFilled);
+      pill.classList.toggle("empty", !isFilled);
+      pill.setAttribute("data-display", isFilled ? normalizedValue : "");
+    });
   }, []);
   reactExports.useImperativeHandle(ref, () => ({
     focus: () => {
@@ -9659,21 +9774,53 @@ const SimplePillEditor = React.forwardRef(({
     return normalized;
   };
   const handleInput = () => {
-    var _a;
+    var _a, _b, _c, _d, _e;
     const text = extractText();
     const pillElements = (_a = editorRef.current) == null ? void 0 : _a.querySelectorAll(".var-pill");
     const updates = {};
+    const seenVars = /* @__PURE__ */ new Set();
     let hasChanges = false;
+    const selection = (_b = document.getSelection) == null ? void 0 : _b.call(document);
+    let activePill = null;
+    if (selection == null ? void 0 : selection.anchorNode) {
+      const anchor = selection.anchorNode;
+      activePill = anchor.nodeType === Node.ELEMENT_NODE ? (_c = anchor.closest) == null ? void 0 : _c.call(anchor, ".var-pill") : (_e = (_d = anchor.parentElement) == null ? void 0 : _d.closest) == null ? void 0 : _e.call(_d, ".var-pill");
+    }
+    if (activePill && pillElements) {
+      const varName = activePill.getAttribute("data-var");
+      if (varName) {
+        const rawText = activePill.textContent ?? "";
+        const normalizedText = rawText.replace(/\u00a0/g, " ").replace(/[\r\n]+/g, " ");
+        const placeholder2 = `<<${varName}>>`;
+        const withoutPlaceholder = normalizedText.split(placeholder2).join("");
+        const trimmedValue = withoutPlaceholder.trim();
+        let newValue = trimmedValue;
+        if (!trimmedValue) {
+          newValue = "";
+          if (rawText !== placeholder2) activePill.textContent = placeholder2;
+          activePill.classList.remove("filled");
+          activePill.classList.add("empty");
+        } else {
+          activePill.classList.add("filled");
+          activePill.classList.remove("empty");
+        }
+        activePill.setAttribute("data-display", newValue);
+        if (((variables2 == null ? void 0 : variables2[varName]) || "") !== newValue) hasChanges = true;
+        updates[varName] = newValue;
+        seenVars.add(varName);
+      }
+    }
     if (pillElements) {
       pillElements.forEach((pill) => {
         const varName = pill.getAttribute("data-var");
-        if (!varName) return;
+        if (!varName || seenVars.has(varName)) return;
         const rawText = pill.textContent ?? "";
         const normalizedText = rawText.replace(/\u00a0/g, " ").replace(/[\r\n]+/g, " ");
-        const trimmed = normalizedText.trim();
         const placeholder2 = `<<${varName}>>`;
-        let newValue = normalizedText;
-        if (!trimmed || trimmed === placeholder2) {
+        const withoutPlaceholder = normalizedText.split(placeholder2).join("");
+        const trimmedValue = withoutPlaceholder.trim();
+        let newValue = trimmedValue;
+        if (!trimmedValue) {
           newValue = "";
           if (rawText !== placeholder2) pill.textContent = placeholder2;
           pill.classList.remove("filled");
@@ -9685,8 +9832,12 @@ const SimplePillEditor = React.forwardRef(({
         pill.setAttribute("data-display", newValue);
         if (((variables2 == null ? void 0 : variables2[varName]) || "") !== newValue) hasChanges = true;
         updates[varName] = newValue;
+        seenVars.add(varName);
       });
     }
+    Object.entries(updates).forEach(([varName, newValue]) => {
+      syncSiblingPills(varName, newValue);
+    });
     if (hasChanges && typeof onVariablesChange === "function") onVariablesChange(updates);
     onChange == null ? void 0 : onChange({ target: { value: text } });
   };
@@ -9700,6 +9851,7 @@ const SimplePillEditor = React.forwardRef(({
       const pillElement = anchor.nodeType === Node.ELEMENT_NODE ? (_b = anchor.closest) == null ? void 0 : _b.call(anchor, ".var-pill") : (_d = (_c = anchor.parentElement) == null ? void 0 : _c.closest) == null ? void 0 : _d.call(_c, ".var-pill");
       const varName = (pillElement == null ? void 0 : pillElement.getAttribute("data-var")) || null;
       if (varName) {
+        clearActivePillPlaceholder();
         applyFocusedPill(varName);
         if (Date.now() >= (autoSelectSuppressedUntilRef.current || 0)) queueAutoSelectForPill(pillElement, varName);
       }
@@ -9777,9 +9929,17 @@ const SimplePillEditor = React.forwardRef(({
     applyFocusedPill(focusedVarName);
   }, [focusedVarName, variables2, applyFocusedPill]);
   reactExports.useEffect(() => {
+    var _a, _b, _c, _d;
     if (!editorRef.current) return;
+    const selection = (_a = document.getSelection) == null ? void 0 : _a.call(document);
+    let activePill = null;
+    if (selection == null ? void 0 : selection.anchorNode) {
+      const anchor = selection.anchorNode;
+      activePill = anchor.nodeType === Node.ELEMENT_NODE ? (_b = anchor.closest) == null ? void 0 : _b.call(anchor, ".var-pill") : (_d = (_c = anchor.parentElement) == null ? void 0 : _c.closest) == null ? void 0 : _d.call(_c, ".var-pill");
+    }
     const pills = editorRef.current.querySelectorAll(".var-pill");
     pills.forEach((pill) => {
+      if (activePill && pill === activePill) return;
       const varName = pill.getAttribute("data-var");
       if (!varName) return;
       const varValue = getVarValue(varName);
@@ -9835,6 +9995,15 @@ const SimplePillEditor = React.forwardRef(({
     const pillElement = anchorNode.nodeType === Node.ELEMENT_NODE ? (_b = anchorNode.closest) == null ? void 0 : _b.call(anchorNode, ".var-pill") : (_d = (_c = anchorNode.parentElement) == null ? void 0 : _c.closest) == null ? void 0 : _d.call(_c, ".var-pill");
     if (pillElement) event.preventDefault();
   };
+  const handleBeforeInput = reactExports.useCallback((event) => {
+    const inputType = (event == null ? void 0 : event.inputType) || "";
+    if (!inputType || inputType.startsWith("insert") || inputType === "deleteContentBackward") {
+      clearActivePillPlaceholder();
+    }
+  }, [clearActivePillPlaceholder]);
+  const handleCompositionStart = reactExports.useCallback(() => {
+    clearActivePillPlaceholder();
+  }, [clearActivePillPlaceholder]);
   return /* @__PURE__ */ jsxRuntimeExports.jsx(
     "div",
     {
@@ -9855,6 +10024,8 @@ const SimplePillEditor = React.forwardRef(({
       onInput: handleInput,
       onFocus: handleFocus,
       onBlur: handleBlur,
+      onBeforeInput: handleBeforeInput,
+      onCompositionStart: handleCompositionStart,
       onMouseDown: handleMouseDown,
       onDoubleClick: handleDoubleClick,
       onKeyDown: handleKeyDown,
@@ -10678,6 +10849,27 @@ const RichTextPillEditor = React.forwardRef(({
   const getVarValue = reactExports.useCallback((name = "") => {
     return resolveVariableValue(variables2, name, templateLanguage);
   }, [variables2, templateLanguage]);
+  const clearActivePillPlaceholder = reactExports.useCallback(() => {
+    var _a, _b, _c, _d;
+    if (!editorRef.current) return false;
+    const selection = (_a = document.getSelection) == null ? void 0 : _a.call(document);
+    if (!(selection == null ? void 0 : selection.anchorNode)) return false;
+    const anchor = selection.anchorNode;
+    const pillElement = anchor.nodeType === Node.ELEMENT_NODE ? (_b = anchor.closest) == null ? void 0 : _b.call(anchor, ".var-pill") : (_d = (_c = anchor.parentElement) == null ? void 0 : _c.closest) == null ? void 0 : _d.call(_c, ".var-pill");
+    if (!pillElement) return false;
+    const varName = pillElement.getAttribute("data-var");
+    if (!varName) return false;
+    const placeholderToken = `<<${varName}>>`;
+    const currentText = (pillElement.textContent || "").trim();
+    if (currentText === placeholderToken) {
+      pillElement.innerHTML = "";
+      pillElement.setAttribute("data-display", "");
+      pillElement.classList.add("empty");
+      pillElement.classList.remove("filled");
+      return true;
+    }
+    return false;
+  }, []);
   const renderContent = (text) => {
     if (!text) return "";
     const regex = /<<([^>]+)>>/g;
@@ -10734,6 +10926,31 @@ const RichTextPillEditor = React.forwardRef(({
     tracker.timestamp = now;
     requestAnimationFrame(() => {
       selectEntirePill(pill);
+    });
+  }, []);
+  const syncSiblingPills = reactExports.useCallback((varName, newValue) => {
+    var _a, _b, _c, _d;
+    if (!editorRef.current || !varName) return;
+    const selection = (_a = document.getSelection) == null ? void 0 : _a.call(document);
+    let activePill = null;
+    if (selection == null ? void 0 : selection.anchorNode) {
+      const anchor = selection.anchorNode;
+      activePill = anchor.nodeType === Node.ELEMENT_NODE ? (_b = anchor.closest) == null ? void 0 : _b.call(anchor, ".var-pill") : (_d = (_c = anchor.parentElement) == null ? void 0 : _c.closest) == null ? void 0 : _d.call(_c, ".var-pill");
+    }
+    const normalizedValue = newValue ?? "";
+    const trimmed = normalizedValue.trim();
+    const displayValue = trimmed.length > 0 ? normalizedValue : `<<${varName}>>`;
+    const displayHtml = convertPlainTextToHtml(displayValue);
+    const isFilled = trimmed.length > 0;
+    editorRef.current.querySelectorAll(".var-pill").forEach((pill) => {
+      if (pill.getAttribute("data-var") !== varName) return;
+      if (activePill && pill === activePill) return;
+      if (pill.innerHTML !== displayHtml) {
+        pill.innerHTML = displayHtml;
+      }
+      pill.classList.toggle("filled", isFilled);
+      pill.classList.toggle("empty", !isFilled);
+      pill.setAttribute("data-display", isFilled ? normalizedValue : "");
     });
   }, []);
   const emitFocusedVarChange = reactExports.useCallback((varName) => {
@@ -10793,22 +11010,59 @@ const RichTextPillEditor = React.forwardRef(({
     return normalized;
   };
   const handleInput = () => {
-    var _a, _b;
+    var _a, _b, _c, _d, _e, _f;
     const text = extractText();
     const html = ((_a = editorRef.current) == null ? void 0 : _a.innerHTML) ?? "";
     const pillElements = (_b = editorRef.current) == null ? void 0 : _b.querySelectorAll(".var-pill");
     const updates = {};
+    const seenVars = /* @__PURE__ */ new Set();
     let hasChanges = false;
+    const selection = (_c = document.getSelection) == null ? void 0 : _c.call(document);
+    let activePill = null;
+    if (selection == null ? void 0 : selection.anchorNode) {
+      const anchor = selection.anchorNode;
+      activePill = anchor.nodeType === Node.ELEMENT_NODE ? (_d = anchor.closest) == null ? void 0 : _d.call(anchor, ".var-pill") : (_f = (_e = anchor.parentElement) == null ? void 0 : _e.closest) == null ? void 0 : _f.call(_e, ".var-pill");
+    }
+    if (activePill && pillElements) {
+      const varName = activePill.getAttribute("data-var");
+      if (varName) {
+        const rawText = activePill.textContent ?? "";
+        const normalizedText = rawText.replace(/\u00a0/g, " ").replace(/[\r\n]+/g, " ");
+        const placeholder2 = `<<${varName}>>`;
+        const withoutPlaceholder = normalizedText.split(placeholder2).join("");
+        const trimmedValue = withoutPlaceholder.trim();
+        let newValue = trimmedValue;
+        if (!trimmedValue) {
+          newValue = "";
+          if (rawText !== placeholder2) {
+            activePill.textContent = placeholder2;
+          }
+          activePill.classList.remove("filled");
+          activePill.classList.add("empty");
+        } else {
+          activePill.classList.add("filled");
+          activePill.classList.remove("empty");
+        }
+        activePill.setAttribute("data-display", newValue);
+        if (((variables2 == null ? void 0 : variables2[varName]) || "") !== newValue) {
+          hasChanges = true;
+        }
+        updates[varName] = newValue;
+        seenVars.add(varName);
+        storePillTemplate(activePill);
+      }
+    }
     if (pillElements) {
       pillElements.forEach((pill) => {
         const varName = pill.getAttribute("data-var");
-        if (!varName) return;
+        if (!varName || seenVars.has(varName)) return;
         const rawText = pill.textContent ?? "";
         const normalizedText = rawText.replace(/\u00a0/g, " ").replace(/[\r\n]+/g, " ");
-        const trimmed = normalizedText.trim();
         const placeholder2 = `<<${varName}>>`;
-        let newValue = normalizedText;
-        if (!trimmed || trimmed === placeholder2) {
+        const withoutPlaceholder = normalizedText.split(placeholder2).join("");
+        const trimmedValue = withoutPlaceholder.trim();
+        let newValue = trimmedValue;
+        if (!trimmedValue) {
           newValue = "";
           if (rawText !== placeholder2) {
             pill.textContent = placeholder2;
@@ -10824,9 +11078,13 @@ const RichTextPillEditor = React.forwardRef(({
           hasChanges = true;
         }
         updates[varName] = newValue;
+        seenVars.add(varName);
         storePillTemplate(pill);
       });
     }
+    Object.entries(updates).forEach(([varName, newValue]) => {
+      syncSiblingPills(varName, newValue);
+    });
     if (hasChanges && typeof onVariablesChange === "function") {
       onVariablesChange(updates);
     }
@@ -10856,6 +11114,7 @@ const RichTextPillEditor = React.forwardRef(({
       const pillElement = anchor.nodeType === Node.ELEMENT_NODE ? (_b = anchor.closest) == null ? void 0 : _b.call(anchor, ".var-pill") : (_d = (_c = anchor.parentElement) == null ? void 0 : _c.closest) == null ? void 0 : _d.call(_c, ".var-pill");
       const varName = (pillElement == null ? void 0 : pillElement.getAttribute("data-var")) || null;
       if (varName) {
+        clearActivePillPlaceholder();
         applyFocusedPill(varName);
         emitFocusedVarChange(varName);
         if (Date.now() >= (autoSelectSuppressedUntilRef.current || 0)) {
@@ -10945,6 +11204,15 @@ const RichTextPillEditor = React.forwardRef(({
       applyFocusedPill(varName);
     }
   };
+  const handleBeforeInput = reactExports.useCallback((event) => {
+    const inputType = (event == null ? void 0 : event.inputType) || "";
+    if (!inputType || inputType.startsWith("insert") || inputType === "deleteContentBackward") {
+      clearActivePillPlaceholder();
+    }
+  }, [clearActivePillPlaceholder]);
+  const handleCompositionStart = reactExports.useCallback(() => {
+    clearActivePillPlaceholder();
+  }, [clearActivePillPlaceholder]);
   const handleDoubleClick = (event) => {
     var _a, _b;
     if (!editorRef.current) return;
@@ -11056,9 +11324,17 @@ const RichTextPillEditor = React.forwardRef(({
     applyFocusedPill(focusedVarName);
   }, [focusedVarName, variables2, applyFocusedPill]);
   reactExports.useEffect(() => {
+    var _a, _b, _c, _d;
     if (!editorRef.current) return;
+    const selection = (_a = document.getSelection) == null ? void 0 : _a.call(document);
+    let activePill = null;
+    if (selection == null ? void 0 : selection.anchorNode) {
+      const anchor = selection.anchorNode;
+      activePill = anchor.nodeType === Node.ELEMENT_NODE ? (_b = anchor.closest) == null ? void 0 : _b.call(anchor, ".var-pill") : (_d = (_c = anchor.parentElement) == null ? void 0 : _c.closest) == null ? void 0 : _d.call(_c, ".var-pill");
+    }
     const pills = editorRef.current.querySelectorAll(".var-pill");
     pills.forEach((pill) => {
+      if (activePill && pill === activePill) return;
       const varName = pill.getAttribute("data-var");
       if (!varName) return;
       const varValue = getVarValue(varName);
@@ -11144,6 +11420,8 @@ const RichTextPillEditor = React.forwardRef(({
         onInput: handleInput,
         onFocus: handleFocus,
         onBlur: handleBlur,
+        onBeforeInput: handleBeforeInput,
+        onCompositionStart: handleCompositionStart,
         onMouseDown: handleMouseDown,
         onDoubleClick: handleDoubleClick,
         onPaste: handlePaste,
@@ -11218,18 +11496,18 @@ const Textarea = reactExports.forwardRef(({ className, autoComplete = "off", aut
 });
 Textarea.displayName = "Textarea";
 const ACTIONS = {
-  improve: { icon: Sparkles$1, color: "from-slate-600 to-slate-700" },
+  improve: { icon: Sparkles, color: "from-slate-600 to-slate-700" },
   formal: { icon: Zap, color: "from-slate-700 to-indigo-700" },
-  friendly: { icon: Sparkles$1, color: "from-emerald-600 to-teal-600" },
+  friendly: { icon: Sparkles, color: "from-emerald-600 to-teal-600" },
   concise: { icon: Zap, color: "from-slate-500 to-slate-600" },
   grammar: { icon: CircleCheckBig, color: "from-amber-600 to-orange-600" },
   translate: { icon: Globe, color: "from-indigo-600 to-slate-600" },
   translateToEnglish: { icon: Globe, color: "from-blue-600 to-slate-600" },
-  emphasize: { icon: Sparkles$1, color: "from-orange-600 to-red-600" },
+  emphasize: { icon: Sparkles, color: "from-orange-600 to-red-600" },
   simplify: { icon: Lightbulb, color: "from-green-600 to-teal-600" },
   persuasive: { icon: Zap, color: "from-purple-600 to-indigo-600" },
   urgent: { icon: Zap, color: "from-red-600 to-orange-600" },
-  confident: { icon: Sparkles$1, color: "from-blue-600 to-indigo-600" }
+  confident: { icon: Sparkles, color: "from-blue-600 to-indigo-600" }
 };
 const TEXT = {
   fr: {
@@ -11319,7 +11597,7 @@ const TEXT = {
     }
   }
 };
-const AISidebar = ({ emailText, onResult, variables: variables2, interfaceLanguage = "fr" }) => {
+const AISidebar = ({ emailText, onResult, variables: variables2, interfaceLanguage = "fr", templateLanguage = "fr" }) => {
   const [copiedPrompt, setCopiedPrompt] = reactExports.useState(null);
   const [customPrompt, setCustomPrompt] = reactExports.useState("");
   const [customCopied, setCustomCopied] = reactExports.useState(false);
@@ -11330,38 +11608,50 @@ const AISidebar = ({ emailText, onResult, variables: variables2, interfaceLangua
     const userAgent = navigator.userAgent;
     setIsEdgeDetected(userAgent.includes("Edg/"));
   }, []);
-  const resolveVariableValue2 = (varName = "") => {
+  const decodeHtmlEntities = (value = "") => String(value ?? "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  const sanitizeResolvedValue = (value = "") => {
+    const decoded = decodeHtmlEntities(value);
+    const trimmed = decoded.trim();
+    if (!trimmed) return "";
+    return trimmed.replace(/[<>]/g, "");
+  };
+  const stripResidualAngleBrackets = (input = "") => {
+    if (!input) return "";
+    const htmlTagPattern = /^\/?\s*(?:div|p|br|span|strong|b|em|i|u|ul|ol|li|h[1-6]|table|tbody|thead|tr|td|th|a|img|section|article|header|footer)\b/i;
+    return String(input).replace(/<([^<>]+)>/g, (match, inner) => {
+      if (htmlTagPattern.test(inner)) return match;
+      return inner;
+    });
+  };
+  const resolveVariableValue$1 = (varName = "") => {
     if (!varName) return "";
-    const key = varName.trim();
-    if (!key) return "";
-    const direct = variables2 == null ? void 0 : variables2[key];
-    if (direct && String(direct).trim()) return String(direct).trim();
-    const lower = variables2 == null ? void 0 : variables2[key.toLowerCase()];
-    if (lower && String(lower).trim()) return String(lower).trim();
+    const resolved = resolveVariableValue(variables2 || {}, varName, templateLanguage) || "";
+    if (resolved && resolved.trim().length) return sanitizeResolvedValue(resolved);
+    const direct = variables2 == null ? void 0 : variables2[varName];
+    if (direct && String(direct).trim().length) return sanitizeResolvedValue(direct);
+    const lower = variables2 == null ? void 0 : variables2[String(varName).toLowerCase()];
+    if (lower && String(lower).trim().length) return sanitizeResolvedValue(lower);
     return "";
   };
   const injectVariableValues = (text = "") => {
     if (!text) return "";
     return text.replace(/<<\s*([^<>]+?)\s*>>/g, (_, name) => {
-      const value = resolveVariableValue2(name);
+      const value = resolveVariableValue$1(name);
       return value || `<<${name.trim()}>>`;
     });
   };
   const convertPillsToText = (htmlText) => {
     if (!htmlText) return "";
-    const decodeHtml = (text) => text.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+    const decodeHtml = decodeHtmlEntities;
     const decodedRaw = decodeHtml(htmlText);
     const normalizedPlaceholders = decodedRaw.replace(/<([A-Za-z0-9-]*_[A-Za-z0-9-]*)>/g, "<<$1>>");
     if (/<<\s*[^<>]+\s*>>/.test(normalizedPlaceholders)) {
       const cleaned = normalizedPlaceholders.replace(/<<\s*>>/g, "").replace(/\s+\n/g, "\n").replace(/\n{2,}/g, "\n").trim();
-      return injectVariableValues(cleaned);
+      return stripResidualAngleBrackets(injectVariableValues(cleaned));
     }
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = htmlText;
-    const normalizeValue = (value) => {
-      if (!value) return "";
-      return value.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
-    };
+    const normalizeValue = (value) => sanitizeResolvedValue(value);
     const toPlainText = (node) => {
       let text = "";
       if (!node) return text;
@@ -11371,8 +11661,9 @@ const AISidebar = ({ emailText, onResult, variables: variables2, interfaceLangua
         } else if (child.nodeType === Node.ELEMENT_NODE) {
           const varName = child.getAttribute("data-var");
           if (varName) {
-            const pillValue = normalizeValue(child.getAttribute("data-value")) || normalizeValue(child.getAttribute("data-display")) || normalizeValue(child.textContent);
-            const rendered = pillValue || `<<${varName}>>`;
+            const resolvedValue = resolveVariableValue$1(varName);
+            const pillValue = normalizeValue(child.getAttribute("data-display")) || normalizeValue(child.getAttribute("data-value")) || normalizeValue(child.textContent);
+            const rendered = resolvedValue || pillValue || `<<${varName}>>`;
             text += rendered;
           } else if (child.tagName === "BR") {
             text += "\n";
@@ -11384,7 +11675,7 @@ const AISidebar = ({ emailText, onResult, variables: variables2, interfaceLangua
       return text;
     };
     const fallbackText = toPlainText(tempDiv).replace(/\s+\n/g, "\n").replace(/\n{2,}/g, "\n").trim();
-    return injectVariableValues(fallbackText);
+    return stripResidualAngleBrackets(injectVariableValues(fallbackText));
   };
   const getPrompts = () => {
     const plainText = convertPillsToText(emailText);
@@ -11440,7 +11731,7 @@ ${plainText}`;
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "h-full flex flex-col space-y-3", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx(Card, { className: "bg-white/98 border border-slate-100 rounded-lg shadow-sm", children: /* @__PURE__ */ jsxRuntimeExports.jsx(CardHeader, { className: "p-3", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(CardTitle, { className: "text-sm font-semibold text-gray-800 flex items-center", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-700 mr-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles$1, { className: "h-4 w-4 text-slate-600" }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-700 mr-2.5", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { className: "h-4 w-4 text-slate-600" }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "leading-tight", children: t.headerTitle }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs font-normal text-gray-500 mt-0.5", children: t.headerSubtitle })
@@ -11500,7 +11791,7 @@ ${plainText}`;
     ] }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Card, { className: "bg-white/98 border border-slate-100 rounded-lg shadow-sm", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(CardContent, { className: "p-3 space-y-2.5", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("h3", { className: "font-semibold text-xs text-gray-800 pt-2 flex items-center", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles$1, { className: "h-3.5 w-3.5 mr-1.5 text-slate-600" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { className: "h-3.5 w-3.5 mr-1.5 text-slate-600" }),
         t.customPromptTitle
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -12745,9 +13036,9 @@ const translations = {
       ],
       form: {
         nameLabel: "Nom complet",
-        namePlaceholder: "Ex. Jeanne Tremblay",
+        namePlaceholder: "Ex. Marie Dubois",
         emailLabel: "Courriel professionnel",
-        emailPlaceholder: "prenom.nom@moncourriel.com",
+        emailPlaceholder: "prenom.nom@tpsgc-pwgsc.gc.ca",
         messageLabelFallback: "Message",
         optional: "(facultatif)",
         submit: "Envoyer la demande",
@@ -12934,9 +13225,9 @@ const translations = {
       ],
       form: {
         nameLabel: "Full name",
-        namePlaceholder: "e.g. Jordan Lee",
+        namePlaceholder: "e.g. Sarah Thompson",
         emailLabel: "Work email",
-        emailPlaceholder: "firstname.lastname@myemail.com",
+        emailPlaceholder: "firstname.lastname@tpsgc-pwgsc.gc.ca",
         messageLabelFallback: "Message",
         optional: "(optional)",
         submit: "Send request",
@@ -13511,7 +13802,7 @@ Title (EN): ${templateDetails.titleEn}
                         {
                           value: templateDetails.category,
                           onChange: (e) => setTemplateDetails((p) => ({ ...p, category: e.target.value })),
-                          placeholder: language === "fr" ? "Ex. Voyages, RH, IT" : "e.g., Travel, HR, IT"
+                          placeholder: language === "fr" ? "Ex. Traduction, Délais, Facturation" : "e.g., Translation, Deadlines, Billing"
                         }
                       )
                     ] })
@@ -18626,21 +18917,18 @@ const Toast = ({ toast, onRemove }) => {
 const __vite_import_meta_env__ = { "BASE_URL": "/", "DEV": false, "MODE": "production", "PROD": true, "SSR": false };
 const NAVY_TEXT = "#1c2f4a";
 const CATEGORY_BADGE_STYLES = {
-  Annulations: { bg: "#ffe4e6", border: "#fecdd3", text: NAVY_TEXT },
-  Assurance: { bg: "#e0f2f1", border: "#99e9d3", text: NAVY_TEXT },
-  "Avis de voyage": { bg: "#fef3c7", border: "#fde68a", text: NAVY_TEXT },
-  "Demande générale": { bg: "#f1f5f9", border: "#cbd5f5", text: NAVY_TEXT },
-  Devis: { bg: "#ede9fe", border: "#c4b5fd", text: NAVY_TEXT },
-  "Itinéraire": { bg: "#e0f2fe", border: "#bae6fd", text: NAVY_TEXT },
-  "Marketing & promotions": { bg: "#fae8ff", border: "#f0abfc", text: NAVY_TEXT },
-  Paiements: { bg: "#dcfce7", border: "#bbf7d0", text: NAVY_TEXT },
-  Plaintes: { bg: "#ffedd5", border: "#fdba74", text: NAVY_TEXT },
-  "Réservation": { bg: "#dbeafe", border: "#bfdbfe", text: NAVY_TEXT },
-  "Suivi post-voyage": { bg: "#f7fee7", border: "#d9f99d", text: NAVY_TEXT },
-  "Urgence": { bg: "#fee2e2", border: "#fecaca", text: NAVY_TEXT },
-  "Visa & documentation": { bg: "#cffafe", border: "#a5f3fc", text: NAVY_TEXT },
-  "Voyages d'affaires": { bg: "#e0e7ff", border: "#c7d2fe", text: NAVY_TEXT },
-  "Voyages de groupe": { bg: "#ccfbf1", border: "#99f6e4", text: NAVY_TEXT },
+  quotes_and_approvals: { bg: "#ede9fe", border: "#c4b5fd", text: NAVY_TEXT },
+  follow_ups_and_cancellations: { bg: "#ffe4e6", border: "#fecdd3", text: NAVY_TEXT },
+  documents_and_formatting: { bg: "#e0f2fe", border: "#bae6fd", text: NAVY_TEXT },
+  deadlines_and_delivery: { bg: "#ffedd5", border: "#fdba74", text: NAVY_TEXT },
+  clarifications_and_client_instructions: { bg: "#fef3c7", border: "#fde68a", text: NAVY_TEXT },
+  security_and_copyright: { bg: "#fee2e2", border: "#fecaca", text: NAVY_TEXT },
+  quality_assurance: { bg: "#dcfce7", border: "#bbf7d0", text: NAVY_TEXT },
+  terminology_and_glossaries: { bg: "#cffafe", border: "#a5f3fc", text: NAVY_TEXT },
+  revisions_and_feedback: { bg: "#fae8ff", border: "#f0abfc", text: NAVY_TEXT },
+  team_coordination: { bg: "#e0e7ff", border: "#c7d2fe", text: NAVY_TEXT },
+  technical_issues: { bg: "#ccfbf1", border: "#99f6e4", text: NAVY_TEXT },
+  general_inquiries: { bg: "#f1f5f9", border: "#cbd5e1", text: NAVY_TEXT },
   default: { bg: "#e6f0ff", border: "#c7dbff", text: NAVY_TEXT }
 };
 const getCategoryBadgeStyle = (category = "", customColors = {}) => {
@@ -19010,7 +19298,6 @@ const extractVariablesFromTemplate = (text = "", templateText = "", variableName
   });
   return result;
 };
-const LANGUAGE_SUFFIXES$1 = ["FR", "EN"];
 const resolveVariableInfo$1 = (templatesData, name = "") => {
   if (!(templatesData == null ? void 0 : templatesData.variables) || !name) return null;
   if (templatesData.variables[name]) return templatesData.variables[name];
@@ -19197,7 +19484,7 @@ const buildInitialVariables = (template, templatesData, langOverride) => {
   if (!(template == null ? void 0 : template.variables) || !Array.isArray(template.variables)) return seed;
   template.variables.forEach((baseName) => {
     const variants = /* @__PURE__ */ new Set([baseName]);
-    LANGUAGE_SUFFIXES$1.forEach((suffix) => variants.add(`${baseName}_${suffix}`));
+    LANGUAGE_SUFFIXES.forEach((suffix) => variants.add(`${baseName}_${suffix}`));
     variants.forEach((key) => {
       if (key === baseName) {
         const info = resolveVariableInfo$1(templatesData, baseName);
@@ -19217,26 +19504,6 @@ const buildInitialVariables = (template, templatesData, langOverride) => {
     });
   });
   return seed;
-};
-const expandVariableAssignment$1 = (varName, value, preferredLanguage = null) => {
-  const assignments = {};
-  if (!varName) return assignments;
-  assignments[varName] = value;
-  const match = varName.match(/^(.*)_(FR|EN)$/i);
-  if (match) {
-    const base = match[1];
-    assignments[base] = value;
-  } else {
-    const targetLang = preferredLanguage && LANGUAGE_SUFFIXES$1.includes(preferredLanguage.toUpperCase()) ? preferredLanguage.toUpperCase() : null;
-    if (targetLang) {
-      assignments[`${varName}_${targetLang}`] = value;
-    } else {
-      LANGUAGE_SUFFIXES$1.forEach((suffix) => {
-        assignments[`${varName}_${suffix}`] = value;
-      });
-    }
-  }
-  return assignments;
 };
 const applyAssignments$1 = (prev = {}, assignments = {}) => {
   const keys = Object.keys(assignments || {});
@@ -19734,13 +20001,22 @@ function App() {
   }, [updateHoverHighlight]);
   const handleInlineVariableChange = reactExports.useCallback((updates) => {
     if (!updates) return;
-    console.log("[Main] handleInlineVariableChange", updates);
-    const assignments = {};
-    Object.entries(updates).forEach(([key, rawValue]) => {
-      const normalized = (rawValue ?? "").toString();
-      Object.assign(assignments, expandVariableAssignment$1(key, normalized));
+    setVariables((prev) => {
+      const assignments = {};
+      const preferredLang = (templateLanguageRef.current || "fr").toUpperCase();
+      Object.entries(updates).forEach(([key, rawValue]) => {
+        const normalized = (rawValue ?? "").toString();
+        Object.assign(assignments, expandVariableAssignment(key, normalized, {
+          preferredLanguage: preferredLang,
+          variables: prev
+        }));
+      });
+      const next = applyAssignments$1(prev, assignments);
+      if (next !== prev) {
+        variablesRef.current = next;
+      }
+      return next;
     });
-    setVariables((prev) => applyAssignments$1(prev, assignments));
   }, []);
   reactExports.useEffect(() => {
     if (!focusedVar) return;
@@ -19951,7 +20227,11 @@ function App() {
         if (msg.type === "update" && (msg.variables || msg.templateId || msg.templateLanguage || msg.hasOwnProperty("focusedVar"))) {
           if (msg.variables && typeof msg.variables === "object") {
             varsRemoteUpdateRef.current = true;
-            setVariables((prev) => ({ ...prev, ...msg.variables }));
+            setVariables((prev) => {
+              const next = { ...prev, ...msg.variables };
+              variablesRef.current = next;
+              return next;
+            });
           }
           if (msg.hasOwnProperty("focusedVar")) {
             setFocusedVar(msg.focusedVar);
@@ -19962,7 +20242,11 @@ function App() {
         } else if (msg.type === "state") {
           if (msg.variables) {
             varsRemoteUpdateRef.current = true;
-            setVariables((prev) => ({ ...prev, ...msg.variables }));
+            setVariables((prev) => {
+              const next = { ...prev, ...msg.variables };
+              variablesRef.current = next;
+              return next;
+            });
           }
           if (msg.hasOwnProperty("focusedVar")) {
             setFocusedVar(msg.focusedVar);
@@ -20036,7 +20320,10 @@ function App() {
           varsRemoteUpdateRef.current = true;
           flagSkipPopoutBroadcast();
           setVariables((prev) => {
-            const assignments = expandVariableAssignment$1(varName, value);
+            const assignments = expandVariableAssignment(varName, value, {
+              preferredLanguage: (templateLanguageRef.current || "fr").toUpperCase(),
+              variables: prev
+            });
             const next = applyAssignments$1(prev, assignments);
             variablesRef.current = next;
             return next;
@@ -20194,11 +20481,6 @@ function App() {
     }
     skipPopoutBroadcastRef.current = { pending: false, templateId: null, templateLanguage: null };
     try {
-      console.log("[Main→Popout] broadcasting variablesUpdated", {
-        keys: Object.keys(variables2 || {}),
-        count: Object.keys(variables2 || {}).length,
-        sample: Object.entries(variables2 || {}).slice(0, 3)
-      });
       channel.postMessage({
         type: "variablesUpdated",
         variables: { ...variables2 },
@@ -20360,11 +20642,21 @@ function App() {
       if (target) map[target] = val;
     }
     if (Object.keys(map).length) {
-      const assignments = {};
-      Object.entries(map).forEach(([varName, value]) => {
-        Object.assign(assignments, expandVariableAssignment$1(varName, value));
+      setVariables((prev) => {
+        const assignments = {};
+        const preferredLang = (templateLanguageRef.current || "fr").toUpperCase();
+        Object.entries(map).forEach(([varName, value]) => {
+          Object.assign(assignments, expandVariableAssignment(varName, value, {
+            preferredLanguage: preferredLang,
+            variables: prev
+          }));
+        });
+        const next = applyAssignments$1(prev, assignments);
+        if (next !== prev) {
+          variablesRef.current = next;
+        }
+        return next;
       });
-      setVariables((prev) => applyAssignments$1(prev, assignments));
       const first = Object.keys(map)[0];
       const el = varInputRefs.current[first];
       if (el) el.focus();
@@ -20393,6 +20685,8 @@ function App() {
   };
   reactExports.useEffect(() => {
     if (!selectedTemplate) {
+      finalSubjectRef.current = "";
+      finalBodyRef.current = "";
       setFinalSubject("");
       setFinalBody("");
     }
@@ -20510,6 +20804,7 @@ function App() {
     if (lastRebuiltTemplateId.current === selectedTemplate.id) return;
     lastRebuiltTemplateId.current = selectedTemplate.id;
     const newVariables = buildInitialVariables(selectedTemplate, templatesData, templateLanguage);
+    variablesRef.current = newVariables;
     setVariables(newVariables);
     if (debug) console.log("[EA][Debug] Rebuilt variables for template:", selectedTemplate.id, "vars:", Object.keys(newVariables).slice(0, 5));
   }, [selectedTemplate, templatesData, templateLanguage, debug]);
@@ -20553,7 +20848,13 @@ function App() {
           e.preventDefault();
           if (templatesData) {
             const initialVars = buildInitialVariables(selectedTemplate, templatesData, templateLanguage);
-            setVariables((prev) => applyAssignments$1(prev, initialVars));
+            setVariables((prev) => {
+              const next = applyAssignments$1(prev, initialVars);
+              if (next !== prev) {
+                variablesRef.current = next;
+              }
+              return next;
+            });
           }
         }
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "v") {
@@ -20894,16 +21195,23 @@ function App() {
       return labelA.localeCompare(labelB, interfaceLanguage === "fr" ? "fr" : "en", { sensitivity: "base" });
     });
   }, [categories, getCategoryLabel, interfaceLanguage]);
-  const replaceVariablesWithValues = (text, values) => {
+  const replaceVariablesWithValues = reactExports.useCallback((text, overrideValues) => {
     if (!text) return "";
-    let result = text;
-    Object.entries(values || {}).forEach(([varName, value]) => {
-      const replacement = value !== void 0 && value !== null && String(value).length ? String(value) : `<<${varName}>>`;
-      const regex = new RegExp(`<<${varName}>>`, "g");
-      result = result.replace(regex, replacement);
+    const sourceValues = overrideValues || variablesRef.current || {};
+    const language = templateLanguageRef.current || templateLanguage || "fr";
+    return String(text ?? "").replace(/<<([^>]+)>>/g, (match, varName) => {
+      const resolved = resolveVariableValue(sourceValues, varName, language);
+      if (resolved && resolved.trim().length) {
+        return resolved;
+      }
+      const direct = sourceValues[varName];
+      if (direct !== void 0 && direct !== null) {
+        const asString = String(direct);
+        if (asString.trim().length) return asString;
+      }
+      return match;
     });
-    return result;
-  };
+  }, [templateLanguage]);
   const replaceVariablesInHTML = (htmlText, values, fallbackPlainText = "") => {
     if (!htmlText) {
       return { html: "", text: fallbackPlainText || "" };
@@ -21089,8 +21397,12 @@ function App() {
     }
     console.log("🔄 Final extracted values:", extracted);
     const normalizedExtracted = {};
+    const preferredLang = (templateLanguage || templateLanguageRef.current || "fr").toUpperCase();
     Object.entries(extracted).forEach(([name, value]) => {
-      Object.assign(normalizedExtracted, expandVariableAssignment$1(name, value));
+      Object.assign(normalizedExtracted, expandVariableAssignment(name, value, {
+        preferredLanguage: preferredLang,
+        variables: variables2
+      }));
     });
     const nextVariables = applyAssignments$1(variables2, normalizedExtracted);
     const hasUpdates = nextVariables !== variables2;
@@ -21115,11 +21427,16 @@ function App() {
       const bodyTemplate = selectedTemplate.body[templateLanguage] || "";
       variablesRef.current = initialVars;
       setVariables(initialVars);
+      finalSubjectRef.current = subjectTemplate;
+      finalBodyRef.current = bodyTemplate;
       setFinalSubject(subjectTemplate);
       setFinalBody(bodyTemplate);
       manualEditRef.current = { subject: false, body: false };
       console.log("🔄 Variables state and ref updated with initial/sample values");
     } else {
+      variablesRef.current = {};
+      finalSubjectRef.current = "";
+      finalBodyRef.current = "";
       setVariables({});
       setFinalSubject("");
       setFinalBody("");
@@ -21152,7 +21469,9 @@ function App() {
           changed = true;
         }
       }
-      return changed ? next : prev;
+      if (!changed) return prev;
+      variablesRef.current = next;
+      return next;
     });
   }, [selectedTemplate, templateLanguage]);
   reactExports.useEffect(() => {
@@ -21176,16 +21495,19 @@ function App() {
     var _a2, _b, _c, _d;
     let htmlContent = "";
     let textContent = "";
-    const resolvedSubject = replaceVariablesWithValues(finalSubject, variables2);
-    const resolvedBodyText = replaceVariablesWithValues(finalBody, variables2);
-    const bodyHtmlSource = ((_b = (_a2 = bodyEditorRef.current) == null ? void 0 : _a2.getHtml) == null ? void 0 : _b.call(_a2)) ?? finalBody;
-    const subjectHtmlSource = ((_d = (_c = subjectEditorRef.current) == null ? void 0 : _c.getHtml) == null ? void 0 : _d.call(_c)) ?? toSimpleHtml2(resolvedSubject);
-    const bodyResult = replaceVariablesInHTML(bodyHtmlSource, variables2, resolvedBodyText);
-    const subjectResult = replaceVariablesInHTML(subjectHtmlSource, variables2, resolvedSubject);
-    const toSimpleHtml2 = (plain = "") => String(plain ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/\r\n|\r/g, "\n").replace(/\n/g, "<br>");
+    const toSimpleHtml = (plain = "") => String(plain ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/\r\n|\r/g, "\n").replace(/\n/g, "<br>");
+    const latestVariables = variablesRef.current || variables2 || {};
+    const subjectSource = finalSubjectRef.current ?? finalSubject;
+    const bodySource = finalBodyRef.current ?? finalBody;
+    const resolvedSubject = replaceVariablesWithValues(subjectSource, latestVariables);
+    const resolvedBodyText = replaceVariablesWithValues(bodySource, latestVariables);
+    const bodyHtmlSource = ((_b = (_a2 = bodyEditorRef.current) == null ? void 0 : _a2.getHtml) == null ? void 0 : _b.call(_a2)) ?? bodySource;
+    const subjectHtmlSource = ((_d = (_c = subjectEditorRef.current) == null ? void 0 : _c.getHtml) == null ? void 0 : _d.call(_c)) ?? toSimpleHtml(resolvedSubject);
+    const bodyResult = replaceVariablesInHTML(bodyHtmlSource, latestVariables, resolvedBodyText);
+    const subjectResult = replaceVariablesInHTML(subjectHtmlSource, latestVariables, resolvedSubject);
     switch (type) {
       case "subject":
-        htmlContent = subjectResult.html || toSimpleHtml2(resolvedSubject);
+        htmlContent = subjectResult.html || toSimpleHtml(resolvedSubject);
         textContent = resolvedSubject;
         break;
       case "body":
@@ -21213,7 +21535,7 @@ ${bodyResult.html}
 </head>
 <body style="margin: 0; padding: 0;">
 <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000000;">
-<div><strong>Subject:</strong> ${subjectResult.html || toSimpleHtml2(resolvedSubject)}</div>
+<div><strong>Subject:</strong> ${subjectResult.html || toSimpleHtml(resolvedSubject)}</div>
 <br>
 <div>${bodyResult.html}</div>
 </div>
@@ -21302,12 +21624,16 @@ ${bodyResult.text}`;
   };
   const exportAs = async (mode) => {
     var _a2, _b, _c, _d;
-    const resolvedSubject = replaceVariablesWithValues(finalSubject, variables2);
-    const resolvedBodyText = replaceVariablesWithValues(finalBody, variables2);
-    const bodyHtmlSource = ((_b = (_a2 = bodyEditorRef.current) == null ? void 0 : _a2.getHtml) == null ? void 0 : _b.call(_a2)) ?? finalBody;
+    const toSimpleHtml = (plain = "") => String(plain ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/\r\n|\r/g, "\n").replace(/\n/g, "<br>");
+    const latestVariables = variablesRef.current || variables2 || {};
+    const subjectSource = finalSubjectRef.current ?? finalSubject;
+    const bodySource = finalBodyRef.current ?? finalBody;
+    const resolvedSubject = replaceVariablesWithValues(subjectSource, latestVariables);
+    const resolvedBodyText = replaceVariablesWithValues(bodySource, latestVariables);
+    const bodyHtmlSource = ((_b = (_a2 = bodyEditorRef.current) == null ? void 0 : _a2.getHtml) == null ? void 0 : _b.call(_a2)) ?? bodySource;
     const subjectHtmlSource = ((_d = (_c = subjectEditorRef.current) == null ? void 0 : _c.getHtml) == null ? void 0 : _d.call(_c)) ?? toSimpleHtml(resolvedSubject);
-    const bodyResult = replaceVariablesInHTML(bodyHtmlSource, variables2, resolvedBodyText);
-    const subjectResult = replaceVariablesInHTML(subjectHtmlSource, variables2, resolvedSubject);
+    const bodyResult = replaceVariablesInHTML(bodyHtmlSource, latestVariables, resolvedBodyText);
+    const subjectResult = replaceVariablesInHTML(subjectHtmlSource, latestVariables, resolvedSubject);
     if (mode === "eml") {
       const boundary = "----=_NextPart_000_0000_01DA1234.56789ABC";
       const cleanBodyHtml = bodyResult.html || "";
@@ -21696,10 +22022,13 @@ ${cleanBodyHtml}
   };
   const composePlainTextEmailDraft = () => {
     var _a2, _b;
-    const resolvedSubject = replaceVariablesWithValues(finalSubject, variables2) || "";
-    const bodyHtmlSource = ((_b = (_a2 = bodyEditorRef.current) == null ? void 0 : _a2.getHtml) == null ? void 0 : _b.call(_a2)) ?? finalBody;
-    const resolvedBodyText = replaceVariablesWithValues(finalBody, variables2) || "";
-    const bodyResult = replaceVariablesInHTML(bodyHtmlSource, variables2, resolvedBodyText);
+    const latestVariables = variablesRef.current || variables2 || {};
+    const subjectSource = finalSubjectRef.current ?? finalSubject;
+    const bodySource = finalBodyRef.current ?? finalBody;
+    const resolvedSubject = replaceVariablesWithValues(subjectSource, latestVariables) || "";
+    const bodyHtmlSource = ((_b = (_a2 = bodyEditorRef.current) == null ? void 0 : _a2.getHtml) == null ? void 0 : _b.call(_a2)) ?? bodySource;
+    const resolvedBodyText = replaceVariablesWithValues(bodySource, latestVariables) || "";
+    const bodyResult = replaceVariablesInHTML(bodyHtmlSource, latestVariables, resolvedBodyText);
     const plainBody = (bodyResult.text || resolvedBodyText || "").replace(/\r?\n/g, "\r\n");
     const subjectParam = encodeURIComponent(resolvedSubject);
     const bodyParam = encodeURIComponent(plainBody);
@@ -21863,7 +22192,7 @@ ${cleanBodyHtml}
           ]
         }
       ),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "w-full max-w-none px-3 sm:px-4 lg:px-6 py-5", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "w-full max-w-none px-3 sm:px-4 lg:px-6 py-5 pb-24", children: [
         !loading && (!templatesData || !Array.isArray(templatesData.templates) || templatesData.templates.length === 0) && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-6 p-4 rounded-lg border-2 border-amber-300 bg-amber-50 text-amber-900 shadow-sm", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-semibold mb-1", children: interfaceLanguage === "fr" ? "Aucun modèle chargé" : "No templates loaded" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-sm", children: [
@@ -21892,7 +22221,7 @@ ${cleanBodyHtml}
               ]
             }
           ) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "hidden md:block shrink-0", style: { width: leftWidth }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Card, { className: "h-fit card-soft border-0 overflow-hidden rounded-[14px]", style: { background: "#ffffff", height: "calc(100vh - 160px)", display: "flex", flexDirection: "column" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(CardContent, { className: "p-0 flex flex-col h-full", style: { padding: 0 }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "hidden md:block shrink-0", style: { width: leftWidth }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Card, { className: "h-fit card-soft border-0 overflow-hidden rounded-[14px]", style: { background: "#ffffff", height: "calc(100vh - 40px)", display: "flex", flexDirection: "column" }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(CardContent, { className: "p-0 flex flex-col h-full", style: { padding: 0 }, children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-shrink-0 px-0 pt-0 pb-2 bg-white", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "w-full px-4 flex items-center justify-center mb-3", style: { background: "var(--primary)", paddingTop: 10, paddingBottom: 10, minHeight: 48, borderTopLeftRadius: 14, borderTopRightRadius: 14, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-2xl font-bold text-white inline-flex items-center gap-2 leading-none whitespace-nowrap", children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { className: "h-6 w-6 text-white", "aria-hidden": "true" }),
@@ -22314,7 +22643,7 @@ ${cleanBodyHtml}
                       style: { background: "#fff", color: "#2c3d50", borderColor: "rgba(44, 61, 80, 0.35)" },
                       title: "Ouvrir l'assistant Copilot",
                       children: [
-                        /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles$1, { className: "h-4 w-4 mr-1.5" }),
+                        /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { className: "h-4 w-4 mr-1.5" }),
                         "Copilot"
                       ]
                     }
@@ -22333,7 +22662,9 @@ ${cleanBodyHtml}
                       ref: subjectEditorRef,
                       value: finalSubject,
                       onChange: (e) => {
-                        setFinalSubject(e.target.value);
+                        const nextValue = e.target.value;
+                        finalSubjectRef.current = nextValue;
+                        setFinalSubject(nextValue);
                         manualEditRef.current.subject = true;
                       },
                       variables: variables2,
@@ -22359,7 +22690,7 @@ ${cleanBodyHtml}
                       },
                       variant: "compact"
                     },
-                    `subject-${selectedTemplate == null ? void 0 : selectedTemplate.id}-${Object.keys(variables2).length}`
+                    `subject-${(selectedTemplate == null ? void 0 : selectedTemplate.id) || "none"}-${templateLanguage}`
                   )
                 ] }),
                 /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3", children: [
@@ -22372,7 +22703,9 @@ ${cleanBodyHtml}
                     {
                       value: finalBody,
                       onChange: (e) => {
-                        setFinalBody(e.target.value);
+                        const nextValue = e.target.value;
+                        finalBodyRef.current = nextValue;
+                        setFinalBody(nextValue);
                         manualEditRef.current.body = true;
                       },
                       ref: bodyEditorRef,
@@ -22400,7 +22733,7 @@ ${cleanBodyHtml}
                       minHeight: "150px",
                       showRichTextToolbar: true
                     },
-                    `body-${selectedTemplate == null ? void 0 : selectedTemplate.id}-${Object.keys(variables2).length}`
+                    `body-${(selectedTemplate == null ? void 0 : selectedTemplate.id) || "none"}-${templateLanguage}`
                   )
                 ] })
               ] })
@@ -22566,7 +22899,7 @@ ${cleanBodyHtml}
           ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx(Card, { className: "card-soft border-0 bg-gradient-to-br from-white to-emerald-50 rounded-[18px]", children: /* @__PURE__ */ jsxRuntimeExports.jsx(CardContent, { className: "flex items-center justify-center h-80", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative mb-6", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { className: "h-16 w-16 text-gray-300 mx-auto animate-bounce" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles$1, { className: "h-6 w-6 text-[#2c3d50] absolute -top-2 -right-2 animate-pulse" })
+              /* @__PURE__ */ jsxRuntimeExports.jsx(Sparkles, { className: "h-6 w-6 text-[#2c3d50] absolute -top-2 -right-2 animate-pulse" })
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-500 text-lg font-medium", children: t.noTemplate })
           ] }) }) }) })
@@ -22798,11 +23131,17 @@ Shift+click to toggle preference`,
                       {
                         onClick: () => {
                           if (!selectedTemplate) return;
-                          const cleared = {};
-                          selectedTemplate.variables.forEach((vn) => {
-                            Object.assign(cleared, expandVariableAssignment$1(vn, ""));
+                          setVariables((prev) => {
+                            const assignments = {};
+                            const preferredLang = (templateLanguageRef.current || "fr").toUpperCase();
+                            selectedTemplate.variables.forEach((vn) => {
+                              Object.assign(assignments, expandVariableAssignment(vn, "", {
+                                preferredLanguage: preferredLang,
+                                variables: prev
+                              }));
+                            });
+                            return applyAssignments$1(prev, assignments);
                           });
-                          setVariables((prev) => applyAssignments$1(prev, cleared));
                         },
                         variant: "outline",
                         size: "sm",
@@ -22909,8 +23248,14 @@ Shift+click to toggle preference`,
                           title: interfaceLanguage === "fr" ? "Remettre l’exemple" : "Reset to example",
                           onClick: () => {
                             const exampleValue = guessSampleValue$1(templatesData, targetVarForLanguage(varName));
-                            const assignments = expandVariableAssignment$1(varName, exampleValue, (templateLanguage || "fr").toUpperCase());
-                            setVariables((prev) => applyAssignments$1(prev, assignments));
+                            const preferredLang = (templateLanguage || templateLanguageRef.current || "fr").toUpperCase();
+                            setVariables((prev) => {
+                              const assignments = expandVariableAssignment(varName, exampleValue, {
+                                preferredLanguage: preferredLang,
+                                variables: prev
+                              });
+                              return applyAssignments$1(prev, assignments);
+                            });
                           },
                           children: "Ex."
                         }
@@ -22921,8 +23266,14 @@ Shift+click to toggle preference`,
                           className: "text-[11px] px-2 py-0.5 rounded border border-[#e6eef5] text-[#7f1d1d] hover:bg-[#fee2e2]",
                           title: interfaceLanguage === "fr" ? "Effacer ce champ" : "Clear this field",
                           onClick: () => {
-                            const assignments = expandVariableAssignment$1(varName, "", (templateLanguage || "fr").toUpperCase());
-                            setVariables((prev) => applyAssignments$1(prev, assignments));
+                            const preferredLang = (templateLanguage || templateLanguageRef.current || "fr").toUpperCase();
+                            setVariables((prev) => {
+                              const assignments = expandVariableAssignment(varName, "", {
+                                preferredLanguage: preferredLang,
+                                variables: prev
+                              });
+                              return applyAssignments$1(prev, assignments);
+                            });
                           },
                           children: "X"
                         }
@@ -22951,16 +23302,28 @@ Shift+click to toggle preference`,
                       onChange: (e) => {
                         const newValue = e.target.value;
                         if (newValue !== currentValue) {
-                          const assignments = expandVariableAssignment$1(varName, newValue, (templateLanguage || "fr").toUpperCase());
-                          setVariables((prev) => applyAssignments$1(prev, assignments));
+                          const preferredLang = (templateLanguage || templateLanguageRef.current || "fr").toUpperCase();
+                          setVariables((prev) => {
+                            const assignments = expandVariableAssignment(varName, newValue, {
+                              preferredLanguage: preferredLang,
+                              variables: prev
+                            });
+                            return applyAssignments$1(prev, assignments);
+                          });
                         }
                         const lines = (newValue.match(/\n/g) || []).length + 1;
                         e.target.style.height = lines <= 2 ? lines === 1 ? "32px" : "52px" : "52px";
                       },
                       onInput: (e) => {
                         const newValue = e.target.value;
-                        const assignments = expandVariableAssignment$1(varName, newValue, (templateLanguage || "fr").toUpperCase());
-                        setVariables((prev) => applyAssignments$1(prev, assignments));
+                        const preferredLang = (templateLanguage || templateLanguageRef.current || "fr").toUpperCase();
+                        setVariables((prev) => {
+                          const assignments = expandVariableAssignment(varName, newValue, {
+                            preferredLanguage: preferredLang,
+                            variables: prev
+                          });
+                          return applyAssignments$1(prev, assignments);
+                        });
                       },
                       onFocus: () => setFocusedVar(varName),
                       onKeyDown: (e) => {
@@ -23122,34 +23485,14 @@ Shift+click to toggle preference`,
             emailText: finalBody,
             onResult: setFinalBody,
             variables: variables2,
-            interfaceLanguage
+            interfaceLanguage,
+            templateLanguage
           }
         ) })
       ] })
     ] })
   ] });
 }
-const LANGUAGE_SUFFIXES = ["FR", "EN"];
-const expandVariableAssignment = (varName, value, preferredLanguage = null) => {
-  const assignments = {};
-  if (!varName) return assignments;
-  assignments[varName] = value;
-  const match = varName.match(/^(.*)_(FR|EN)$/i);
-  if (match) {
-    const base = match[1];
-    assignments[base] = value;
-  } else {
-    const targetLang = preferredLanguage && LANGUAGE_SUFFIXES.includes(preferredLanguage.toUpperCase()) ? preferredLanguage.toUpperCase() : null;
-    if (targetLang) {
-      assignments[`${varName}_${targetLang}`] = value;
-    } else {
-      LANGUAGE_SUFFIXES.forEach((suffix) => {
-        assignments[`${varName}_${suffix}`] = value;
-      });
-    }
-  }
-  return assignments;
-};
 const applyAssignments = (prev = {}, assignments = {}) => {
   const keys = Object.keys(assignments || {});
   if (!keys.length) return prev;
@@ -23202,25 +23545,15 @@ function VariablesPopout({
   interfaceLanguage,
   templateLanguage = "fr"
 }) {
-  var _a;
   console.log("🔍 VariablesPopout props:", {
     selectedTemplate: selectedTemplate == null ? void 0 : selectedTemplate.id,
     templatesData: !!templatesData,
     initialVariables,
-    initialVariablesKeys: Object.keys(initialVariables || {}),
-    initialVariablesCount: Object.keys(initialVariables || {}).length,
     interfaceLanguage,
     templateLanguage
   });
-  const [variables2, setVariables] = reactExports.useState(() => {
-    console.log("🔍 VariablesPopout initial state:", initialVariables);
-    return initialVariables || {};
-  });
+  const [variables2, setVariables] = reactExports.useState(initialVariables || {});
   const varInputRefs = reactExports.useRef({});
-  const lastInitialVarsRef = reactExports.useRef(initialVariables);
-  const getVarValue = reactExports.useCallback((name = "") => {
-    return resolveVariableValue(variables2, name, templateLanguage);
-  }, [variables2, templateLanguage]);
   const autoResize = reactExports.useCallback((el) => {
     if (!el) return;
     try {
@@ -23230,35 +23563,17 @@ function VariablesPopout({
     } catch {
     }
   }, []);
+  const lastInitialVarsRef = reactExports.useRef(initialVariables);
   reactExports.useEffect(() => {
-    if (!varInputRefs.current) return;
-    Object.keys(varInputRefs.current).forEach((varName) => {
-      const textarea = varInputRefs.current[varName];
-      if (!textarea || document.activeElement === textarea) return;
-      const expectedValue = getVarValue(varName);
-      if (textarea.value !== expectedValue) {
-        textarea.value = expectedValue;
-        autoResize(textarea);
-      }
-    });
-  }, [variables2, getVarValue, autoResize]);
-  reactExports.useEffect(() => {
-    console.log("🔍 VariablesPopout checking initialVariables update:", {
-      refChanged: lastInitialVarsRef.current !== initialVariables,
-      initialVariablesCount: Object.keys(initialVariables || {}).length,
-      currentVariablesCount: Object.keys(variables2).length
-    });
     if (lastInitialVarsRef.current !== initialVariables) {
       lastInitialVarsRef.current = initialVariables;
       if (initialVariables && typeof initialVariables === "object") {
-        console.log("🔍 VariablesPopout updating variables from initialVariables:", initialVariables);
         setVariables({ ...initialVariables });
       } else {
-        console.log("🔍 VariablesPopout clearing variables (initialVariables invalid)");
         setVariables({});
       }
     }
-  }, [initialVariables, variables2]);
+  }, [initialVariables]);
   reactExports.useEffect(() => {
     try {
       const map = varInputRefs.current || {};
@@ -23271,6 +23586,9 @@ function VariablesPopout({
     if (/_(FR|EN)$/i.test(name)) return name;
     return `${name}_${activeLanguageCode}`;
   }, [activeLanguageCode]);
+  const getVarValue = reactExports.useCallback((name = "") => {
+    return resolveVariableValue(variables2, name, templateLanguage);
+  }, [variables2, templateLanguage]);
   const [isPinned, setIsPinned] = reactExports.useState(() => {
     try {
       return localStorage.getItem("ea_popout_pinned") === "true";
@@ -23481,18 +23799,8 @@ function VariablesPopout({
             return;
           }
           if (message.type === "variablesUpdated") {
-            const newVars = message.variables || {};
-            setVariables((prevVars) => {
-              let hasChanges = false;
-              const allKeys = /* @__PURE__ */ new Set([...Object.keys(prevVars), ...Object.keys(newVars)]);
-              for (const key of allKeys) {
-                if (prevVars[key] !== newVars[key]) {
-                  hasChanges = true;
-                  break;
-                }
-              }
-              return hasChanges ? newVars : prevVars;
-            });
+            console.log("🔍 Updating variables from variablesUpdated:", message.variables);
+            setVariables(message.variables || {});
             return;
           }
           if (message.type === "syncComplete") {
@@ -23543,13 +23851,19 @@ function VariablesPopout({
     }
   };
   const updateVariable = (varName, value) => {
-    const assignments = expandVariableAssignment(varName, value, activeLanguageCode);
+    const assignments = expandVariableAssignment(varName, value, {
+      preferredLanguage: activeLanguageCode,
+      variables: variables2
+    });
     const snapshot = applyAssignments(variables2 || {}, assignments);
     setVariables(snapshot);
     enqueueVariableUpdate(varName, value, snapshot);
   };
   const removeVariable = (varName) => {
-    const assignments = expandVariableAssignment(varName, "", activeLanguageCode);
+    const assignments = expandVariableAssignment(varName, "", {
+      preferredLanguage: activeLanguageCode,
+      variables: variables2
+    });
     const snapshot = applyAssignments(variables2 || {}, assignments);
     setVariables(snapshot);
     enqueueVariableUpdate(varName, "", snapshot);
@@ -23568,7 +23882,10 @@ function VariablesPopout({
   const reinitializeVariable = (varName) => {
     const targetName = targetVarForLanguage(varName);
     const exampleValue = guessSampleValue(templatesData, targetName);
-    const assignments = expandVariableAssignment(varName, exampleValue, activeLanguageCode);
+    const assignments = expandVariableAssignment(varName, exampleValue, {
+      preferredLanguage: activeLanguageCode,
+      variables: variables2
+    });
     const snapshot = applyAssignments(variables2 || {}, assignments);
     setVariables(snapshot);
     enqueueVariableUpdate(varName, exampleValue, snapshot);
@@ -23588,13 +23905,13 @@ function VariablesPopout({
     clearTimeout(sendTimerRef.current);
   }, []);
   reactExports.useEffect(() => {
-    var _a2;
+    var _a;
     if (!(selectedTemplate == null ? void 0 : selectedTemplate.variables) || selectedTemplate.variables.length === 0) return;
     try {
       const firstEmpty = selectedTemplate.variables.find(
         (vn) => !getVarValue(vn).trim()
       ) || selectedTemplate.variables[0];
-      const el = (_a2 = varInputRefs.current) == null ? void 0 : _a2[firstEmpty];
+      const el = (_a = varInputRefs.current) == null ? void 0 : _a[firstEmpty];
       if (el && typeof el.focus === "function") {
         setTimeout(() => {
           try {
@@ -23612,23 +23929,8 @@ function VariablesPopout({
     }
   }, []);
   if (!selectedTemplate || !templatesData) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "min-h-screen flex items-center justify-center bg-gray-50", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-center p-8", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-500 text-lg mb-4", children: "Loading template data..." }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-gray-400", children: [
-        "selectedTemplate: ",
-        selectedTemplate ? "yes" : "no"
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-gray-400", children: [
-        "templatesData: ",
-        templatesData ? "yes" : "no"
-      ] })
-    ] }) });
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "min-h-screen flex items-center justify-center bg-gray-50", children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-gray-500", children: "Loading..." }) });
   }
-  console.log("🔍 VariablesPopout RENDERING with variables:", {
-    variablesKeys: Object.keys(variables2),
-    variablesCount: Object.keys(variables2).length,
-    variablesSample: Object.entries(variables2).slice(0, 3)
-  });
   const t = interfaceLanguage === "fr" ? {
     title: "Modifier les variables",
     reinitialize: "Réinitialiser",
@@ -23682,31 +23984,9 @@ function VariablesPopout({
         ]
       }
     ),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-5 py-2 bg-yellow-50 border-b border-yellow-200", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("details", { className: "text-xs", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("summary", { className: "cursor-pointer font-semibold text-yellow-800", children: "Debug Info (click to expand)" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-2 space-y-1 text-yellow-700", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
-          "Variables count: ",
-          Object.keys(variables2).length
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
-          "Variables keys: ",
-          Object.keys(variables2).slice(0, 5).join(", "),
-          Object.keys(variables2).length > 5 ? "..." : ""
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
-          "Sample values: ",
-          JSON.stringify(Object.fromEntries(Object.entries(variables2).slice(0, 2)), null, 2)
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { children: [
-          "Template variables: ",
-          ((_a = selectedTemplate == null ? void 0 : selectedTemplate.variables) == null ? void 0 : _a.length) || 0
-        ] })
-      ] })
-    ] }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "py-2 px-5", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-1 gap-2", style: { width: "100%", minWidth: 0 }, children: (() => {
-      var _a2, _b;
-      const subjectText = ((_a2 = selectedTemplate == null ? void 0 : selectedTemplate.subject) == null ? void 0 : _a2[templateLanguage]) || "";
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "py-2 px-5", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid grid-cols-2 gap-3", style: { width: "100%", minWidth: 0 }, children: (() => {
+      var _a, _b;
+      const subjectText = ((_a = selectedTemplate == null ? void 0 : selectedTemplate.subject) == null ? void 0 : _a[templateLanguage]) || "";
       const bodyText = ((_b = selectedTemplate == null ? void 0 : selectedTemplate.body) == null ? void 0 : _b[templateLanguage]) || "";
       const combinedText = subjectText + "\n" + bodyText;
       const seenVars = /* @__PURE__ */ new Set();
@@ -23726,8 +24006,8 @@ function VariablesPopout({
       });
       return orderedVars;
     })().map((varName) => {
-      var _a2, _b, _c, _d;
-      const varInfo = (_a2 = templatesData == null ? void 0 : templatesData.variables) == null ? void 0 : _a2[varName];
+      var _a, _b, _c, _d;
+      const varInfo = (_a = templatesData == null ? void 0 : templatesData.variables) == null ? void 0 : _a[varName];
       if (!varInfo) {
         console.warn("🔍 Variable info not found for:", varName);
         return null;
@@ -23814,7 +24094,7 @@ function VariablesPopout({
                 },
                 onBlur: () => notifyFocusChange(null),
                 onKeyDown: (e) => {
-                  var _a3;
+                  var _a2;
                   if (e.key === "Tab" || e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     const list = selectedTemplate.variables;
@@ -23829,7 +24109,7 @@ function VariablesPopout({
                     const el = varInputRefs.current[nextVar];
                     if (el && el.focus) {
                       el.focus();
-                      (_a3 = el.select) == null ? void 0 : _a3.call(el);
+                      (_a2 = el.select) == null ? void 0 : _a2.call(el);
                     }
                   }
                 },
@@ -23852,7 +24132,6 @@ function VariablesPopout({
   ] });
 }
 function VariablesPage() {
-  var _a;
   const paramsRef = reactExports.useRef(null);
   if (!paramsRef.current) {
     paramsRef.current = new URLSearchParams(window.location.search);
@@ -23883,9 +24162,9 @@ function VariablesPage() {
     }
   }, []);
   const inferTemplateFromVariables = reactExports.useCallback((data, varsObj) => {
-    var _a2;
+    var _a;
     try {
-      if (!((_a2 = data == null ? void 0 : data.templates) == null ? void 0 : _a2.length) || !varsObj) return null;
+      if (!((_a = data == null ? void 0 : data.templates) == null ? void 0 : _a.length) || !varsObj) return null;
       const varKeys = new Set(Object.keys(varsObj).map((k) => String(k).replace(/_(FR|EN)$/i, "")));
       let bestId = null;
       let bestScore = 0;
@@ -23915,14 +24194,13 @@ function VariablesPage() {
       }
     }
     if (!template) return false;
-    debugLog("applyTemplateSelection", { templateId, resolvedId: template.id, options });
+    debugLog("applyTemplateSelection", { templateId, resolvedId: template.id });
     setSelectedTemplate(template);
     if (options.preferLanguage) {
       setInterfaceLanguage(options.preferLanguage);
     }
     if (options.hydrateVariables) {
       const shouldHydrate = options.forceHydration || hydratedTemplateIdRef.current !== templateId;
-      debugLog("hydrateVariables check", { shouldHydrate, forceHydration: options.forceHydration, hydratedTemplateIdRef: hydratedTemplateIdRef.current, templateId });
       if (shouldHydrate) {
         const fallback = {};
         const allowedKeys = /* @__PURE__ */ new Set();
@@ -23952,12 +24230,10 @@ function VariablesPage() {
             });
           });
         }
-        debugLog("hydrated variables", { fallbackKeys: Object.keys(fallback), count: Object.keys(fallback).length });
         hydratedTemplateIdRef.current = templateId;
         setVariables((prevVars) => {
           const prev = prevVars || {};
           if (options.mergeWithExisting === false) {
-            debugLog("setting variables (no merge)", { count: Object.keys(fallback).length });
             return fallback;
           }
           const merged = { ...fallback };
@@ -23966,13 +24242,12 @@ function VariablesPage() {
               merged[key] = prev[key];
             }
           });
-          debugLog("setting variables (merged)", { prevCount: Object.keys(prev).length, mergedCount: Object.keys(merged).length });
           return merged;
         });
       }
     }
     return true;
-  }, [setInterfaceLanguage, setVariables, normalizeTemplateId]);
+  }, [setInterfaceLanguage, setVariables]);
   reactExports.useEffect(() => {
     let cancelled = false;
     const loadSnapshot = () => {
@@ -24004,9 +24279,9 @@ function VariablesPage() {
       }
     };
     const loadData = async () => {
-      var _a2, _b;
+      var _a, _b;
       try {
-        const base = ((_b = (_a2 = import.meta) == null ? void 0 : _a2.env) == null ? void 0 : _b.BASE_URL) || "/";
+        const base = ((_b = (_a = import.meta) == null ? void 0 : _a.env) == null ? void 0 : _b.BASE_URL) || "/";
         const normalizedBase = base.endsWith("/") ? base : `${base}/`;
         const primaryBase = new URL(normalizedBase, window.location.origin);
         const candidates = [
@@ -24074,21 +24349,16 @@ function VariablesPage() {
               setPendingTemplateLanguage(data.templateLanguage);
               setInterfaceLanguage(data.templateLanguage);
             }
-            if (data.variables && typeof data.variables === "object" && Object.keys(data.variables).length > 0) {
-              debugLog("updating variables from main window", { count: Object.keys(data.variables).length });
+            if (data.variables && typeof data.variables === "object") {
               setVariables({ ...data.variables });
-            } else {
-              debugLog("ignoring empty variables from main window, keeping existing state");
-              if (!data.templateId && templatesData) {
-                const guessed = inferTemplateFromVariables(templatesData, data.variables || {});
-                if (guessed) setPendingTemplateId(guessed);
-              }
+            } else if (!data.templateId && templatesData) {
+              const guessed = inferTemplateFromVariables(templatesData, data.variables || {});
+              if (guessed) setPendingTemplateId(guessed);
             }
             if (templatesData && data.templateId) {
               applyTemplateSelection(templatesData, data.templateId, {
                 preferLanguage: data.templateLanguage,
-                hydrateVariables: Object.keys(data.variables || {}).length === 0
-                // Only hydrate if main window sent empty vars
+                hydrateVariables: true
               });
             }
             return;
@@ -24117,13 +24387,9 @@ function VariablesPage() {
             }
           }
         };
-        setTimeout(sendReady, 10);
         setTimeout(sendReady, 50);
-        setTimeout(sendReady, 150);
         setTimeout(sendReady, 300);
         setTimeout(sendReady, 600);
-        setTimeout(sendReady, 1e3);
-        setTimeout(sendReady, 2e3);
       } catch (e) {
         console.error("BroadcastChannel not available:", e);
       }
@@ -24136,16 +24402,10 @@ function VariablesPage() {
     };
   }, []);
   reactExports.useEffect(() => {
-    if (!templatesData || !pendingTemplateId) {
-      debugLog("skipping applyTemplateSelection", { hasTemplatesData: !!templatesData, pendingTemplateId });
-      return;
-    }
-    debugLog("attempting applyTemplateSelection", { pendingTemplateId, pendingTemplateLanguage });
+    if (!templatesData || !pendingTemplateId) return;
     const resolved = applyTemplateSelection(templatesData, pendingTemplateId, {
       preferLanguage: pendingTemplateLanguage,
-      hydrateVariables: true,
-      forceHydration: true
-      // Always hydrate on template change
+      hydrateVariables: true
     });
     if (!resolved) {
       console.warn("📋 Unable to locate template for popout:", pendingTemplateId, "available:", ((templatesData == null ? void 0 : templatesData.templates) || []).map((t) => t.id).slice(0, 10));
@@ -24160,7 +24420,7 @@ function VariablesPage() {
         setPendingTemplateId(null);
       }
     }
-  }, [templatesData, pendingTemplateId, pendingTemplateLanguage, applyTemplateSelection, normalizeTemplateId]);
+  }, [templatesData, pendingTemplateId, pendingTemplateLanguage, applyTemplateSelection]);
   reactExports.useEffect(() => {
     if (!templatesData || selectedTemplate || loading) return;
     const timer = setTimeout(() => {
@@ -24185,14 +24445,9 @@ function VariablesPage() {
   }
   console.log("🔍 VariablesPage rendering with:", {
     selectedTemplate: selectedTemplate == null ? void 0 : selectedTemplate.id,
-    variables: Object.keys(variables2),
-    variableCount: Object.keys(variables2).length,
-    interfaceLanguage,
-    templateLanguage: pendingTemplateLanguage
+    variables: variables2,
+    interfaceLanguage
   });
-  if (Object.keys(variables2).length === 0 && ((_a = selectedTemplate == null ? void 0 : selectedTemplate.variables) == null ? void 0 : _a.length) > 0) {
-    console.warn("🔍 No variables populated yet, but template requires:", selectedTemplate.variables);
-  }
   return /* @__PURE__ */ jsxRuntimeExports.jsx(
     VariablesPopout,
     {
@@ -24272,4 +24527,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-CqcuB4Ai.js.map
+//# sourceMappingURL=main-D4a4Hdg0.js.map

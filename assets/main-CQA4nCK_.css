@@ -1935,10 +1935,6 @@
     border-color: #0000;
   }
 
-  .border-yellow-200 {
-    border-color: var(--color-yellow-200);
-  }
-
   .border-t-transparent {
     border-top-color: #0000;
   }
@@ -1960,7 +1956,7 @@
   }
 
   .bg-\[\#aca868\]\/20 {
-    background-color: oklab(72.0023% -.0223324 .0819528 / .2);
+    background-color: oklab(72.0023% -.0223322 .0819527 / .2);
   }
 
   .bg-\[\#e6eef5\] {
@@ -2133,10 +2129,6 @@
     .bg-white\/98 {
       background-color: color-mix(in oklab, var(--color-white) 98%, transparent);
     }
-  }
-
-  .bg-yellow-50 {
-    background-color: var(--color-yellow-50);
   }
 
   .bg-gradient-to-br {
@@ -2477,6 +2469,10 @@
 
   .pb-9 {
     padding-bottom: calc(var(--spacing) * 9);
+  }
+
+  .pb-24 {
+    padding-bottom: calc(var(--spacing) * 24);
   }
 
   .pl-2 {
@@ -2889,14 +2885,6 @@
 
   .text-yellow-500 {
     color: var(--color-yellow-500);
-  }
-
-  .text-yellow-700 {
-    color: var(--color-yellow-700);
-  }
-
-  .text-yellow-800 {
-    color: var(--color-yellow-800);
   }
 
   .capitalize {
