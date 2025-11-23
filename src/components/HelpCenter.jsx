@@ -919,10 +919,10 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'j
                   </>
                 ) : null}
               </section>
-              <Separator className="bg-[#e6eef5]" />
+              {formOnly ? null : <Separator className="bg-[#e6eef5]" />}
               </>
               )}
-              <section ref={contactFormRef} className="border-t border-[#bfe7e3] bg-transparent">
+              <section ref={contactFormRef} className={formOnly ? "bg-transparent" : "border-t border-[#bfe7e3] bg-transparent"}>
                 <div className="flex items-center gap-2 text-[#145a64]">
                   <Mail className="h-4 w-4" aria-hidden="true" />
                   <h3 className="text-sm font-semibold m-0 p-0">{strings.contact.heading}</h3>
