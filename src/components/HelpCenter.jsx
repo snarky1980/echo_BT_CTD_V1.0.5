@@ -437,8 +437,11 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'e
   const [status, setStatus] = useState('idle')
   const [errors, setErrors] = useState({})
 
-  // New service integration: require explicit endpoint (e.g. Formspree URL) via prop or env.
-  // If not provided, form will be disabled with a configuration notice.
+  // Endpoint resolution chain:
+  // 1. Explicit prop (contactEndpoint)
+  // 2. Env variable VITE_SUPPORT_FORM_ENDPOINT (e.g. Formspree or custom API)
+  // 3. Fallback to FormSubmit (still works once email verified)
+  // If all fail we will offer a manual mailto fallback on error.
   const envEndpoint = (() => {
     try {
       const v = import.meta?.env?.VITE_SUPPORT_FORM_ENDPOINT
@@ -446,8 +449,9 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'e
     } catch {}
     return null
   })()
-  const activeEndpoint = contactEndpoint || envEndpoint || null
-  const submissionUrl = activeEndpoint // May be null -> disable form
+  const fallbackEndpoint = `https://formsubmit.co/ajax/${encodeURIComponent(supportEmail)}`
+  const activeEndpoint = contactEndpoint || envEndpoint || fallbackEndpoint
+  const submissionUrl = activeEndpoint
   const selectedCategory = contactOptions.find((option) => option.value === formData.category) || contactOptions[0] || null
   const isSubmitting = status === 'submitting'
   const feedbackMessage = status === 'success'
@@ -527,12 +531,6 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'e
     if (isSubmitting) return
 
     const validationErrors = {}
-    if (!submissionUrl) {
-      // Service not configured; prevent submission
-      setErrors({ service: language === 'fr' ? 'Service de formulaire non configuré.' : 'Form service not configured.' })
-      setStatus('error')
-      return
-    }
     if (!formData.name.trim()) {
       validationErrors.name = strings.contact.form.validation.nameRequired
     }
@@ -1149,15 +1147,7 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'e
                     <p className="text-xs text-slate-500">{strings.contact.form.extraHelp}</p>
                   ) : null}
 
-                  {(!submissionUrl) ? (
-                    <div className="flex items-start gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900">
-                      <AlertTriangle className="mt-0.5 h-4 w-4" aria-hidden="true" />
-                      <div>
-                        <p className="font-semibold">{language === 'fr' ? 'Configuration requise' : 'Configuration required'}</p>
-                        <p className="mt-1">{language === 'fr' ? 'Aucun service de soumission configuré. Ajoutez VITE_SUPPORT_FORM_ENDPOINT à .env avec votre URL Formspree.' : 'No submission service configured. Add VITE_SUPPORT_FORM_ENDPOINT in .env with your Formspree endpoint URL.'}</p>
-                      </div>
-                    </div>
-                  ) : feedbackMessage ? (
+                  {feedbackMessage ? (
                     <div
                       className={`flex items-start gap-3 rounded-lg border p-3 text-sm ${status === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-700'}`}
                     >
@@ -1179,6 +1169,15 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'e
                           >
                             {strings.contact.form.sendAnother}
                           </button>
+                        ) : null}
+                        {status === 'error' ? (
+                          <div className="mt-2 text-xs">
+                            <p className="font-semibold mb-1">{language === 'fr' ? 'Solutions de repli:' : 'Fallback options:'}</p>
+                            <ul className="list-disc pl-4 space-y-1">
+                              <li>{language === 'fr' ? 'Réessayez plus tard; l’endpoint peut être temporairement indisponible.' : 'Retry later; endpoint may be temporarily unavailable.'}</li>
+                              <li>{language === 'fr' ? 'Envoyez un courriel direct:' : 'Send direct email:'} <a className="text-[#145a64] underline" href={`mailto:${supportEmail}?subject=ECHO%20Support%20(${encodeURIComponent(formData.category)})`}>{supportEmail}</a></li>
+                            </ul>
+                          </div>
                         ) : null}
                       </div>
                     </div>

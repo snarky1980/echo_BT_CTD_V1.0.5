@@ -61,7 +61,12 @@ export default async function handler(req, res) {
 ```
 
 ## UI Behavior Without Endpoint
-If `VITE_SUPPORT_FORM_ENDPOINT` is blank, the form shows a yellow configuration warning and blocks submission.
+The app now falls back automatically:
+1. `contactEndpoint` prop (if provided)
+2. `VITE_SUPPORT_FORM_ENDPOINT` (Formspree or custom API)
+3. FormSubmit AJAX endpoint using `VITE_SUPPORT_EMAIL`
+
+If all fail or the request errors, users still see a generic error and are offered a direct mailto link.
 
 ## Troubleshooting
 - Yellow box: Endpoint not set.
