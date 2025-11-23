@@ -412,6 +412,13 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'j
     } catch {}
     return contactOptions[0]?.value || 'support'
   }, [contactOptions])
+
+  // Auto-expand full mode when opening directly to template submission
+  useEffect(() => {
+    if (initialCategory === 'template') {
+      setCompact(false)
+    }
+  }, [initialCategory])
   
   const [formData, setFormData] = useState(() => ({
     category: initialCategory,
