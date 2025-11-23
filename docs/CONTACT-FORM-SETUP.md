@@ -1,66 +1,81 @@
-# Contact Form Setup
+# Contact Form Setup (Service Migration)
 
-The help center includes a contact form that users can submit for support, bug reports, improvements, or template submissions.
+The help center contact form now requires an explicit endpoint. The previous automatic FormSubmit.co fallback has been removed to avoid silent failures.
 
-## Form Submission Service
+## Recommended: Formspree
 
-By default, the form uses [FormSubmit.co](https://formsubmit.co), a free form backend service that forwards submissions to your email.
-
-### Setup Steps
-
-1. **Set Your Support Email**
-   
-   Create or edit `.env` file in the project root:
+1. Create a free account at https://formspree.io/.
+2. Create a new form – you receive an endpoint like:
+   `https://formspree.io/f/xyz123ab`.
+3. In `.env` set:
    ```env
-   VITE_SUPPORT_EMAIL=your-actual-email@example.com
+   VITE_SUPPORT_EMAIL=echo-support@jskennedy.net
+   VITE_SUPPORT_FORM_ENDPOINT=https://formspree.io/f/xyz123ab
    ```
-
-2. **Verify Your Email with FormSubmit.co**
-   
-   - Deploy your app or run it locally
-   - Open the help center and submit a test form
-   - Check your inbox for a verification email from FormSubmit.co
-   - Click the verification link
-   - Future submissions will now be delivered to your email
-
-3. **Test the Form**
-   
-   After verification, submit another test message to confirm it arrives.
-
-## Using a Custom Backend (Optional)
-
-If you prefer to use your own API endpoint instead of FormSubmit.co:
-
-1. Add this to your `.env` file:
-   ```env
-   VITE_SUPPORT_FORM_ENDPOINT=https://your-api.com/contact
+4. Rebuild & redeploy:
+   ```bash
+   npm run build
+   npx gh-pages -d dist
    ```
+5. Submit a test message. Success shows the green confirmation; errors show a generic message.
 
-2. Your endpoint should accept POST requests with JSON body:
-   ```json
-   {
-     "category": "support|glitch|improvement|template",
-     "categoryLabel": "Support",
-     "name": "User Name",
-     "email": "user@example.com",
-     "message": "Support request message",
-     "extra": "Optional extra field content",
-     "language": "fr|en",
-     "submittedAt": "2025-11-23T12:00:00.000Z",
-     "product": "ECHO-BT-CTD",
-     "templateDetails": { /* only for template submissions */ }
-   }
-   ```
+### Payload Structure
+JSON POST sent to your endpoint:
+```json
+{
+  "category": "support",
+  "categoryLabel": "Support",
+  "name": "Jane Doe",
+  "email": "jane.doe@example.com",
+  "message": "Issue description...",
+  "extra": "Optional link",
+  "language": "fr",
+  "submittedAt": "2025-11-23T10:35:00.000Z",
+  "product": "ECHO-BT-CTD",
+  "templateDetails": { /* when category === 'template' */ }
+}
+```
+Add `_subject` if you want a custom email subject in Formspree:
+```js
+payload._subject = `ECHO Contact: ${payload.categoryLabel}`
+```
 
-3. Return a 200 status on success, or 4xx/5xx on error.
+## Custom Backend Option
 
-## Error Messages
+If you host your own endpoint (Cloudflare Worker, Vercel, Lambda):
 
-If form submission fails, users see a generic error message without exposing your email address. The actual submission error is logged to the browser console for debugging.
+1. Implement a POST handler that validates `email`, `message`.
+2. Send the email via Resend, AWS SES, SendGrid, etc.
+3. Return HTTP 200 with `{ ok: true }`.
+4. Set `VITE_SUPPORT_FORM_ENDPOINT=https://yourdomain.com/contact`.
+
+Minimal example:
+```js
+export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).end()
+  const data = req.body || {}
+  if (!data.email || !data.message) return res.status(400).json({ ok: false, error: 'missing_fields' })
+  // send email logic here
+  return res.json({ ok: true })
+}
+```
+
+## UI Behavior Without Endpoint
+If `VITE_SUPPORT_FORM_ENDPOINT` is blank, the form shows a yellow configuration warning and blocks submission.
+
+## Troubleshooting
+- Yellow box: Endpoint not set.
+- 404: Formspree form ID incorrect.
+- 422: Formspree validation failed (check required fields).
+- CORS error: Ensure endpoint accepts standard browser POST (Formspree does by default).
 
 ## Security Notes
+- No secrets stored client-side (public endpoint only).
+- Use serverless proxy if you need API keys.
+- Generic error messages prevent leaking addresses.
+- Timestamp + product help with triage and audit.
 
-- Your support email is never exposed to users in error messages
-- FormSubmit.co requires email verification to prevent spam
-- All submissions include timestamp and product identifier
-- Consider adding CAPTCHA if you experience spam (FormSubmit.co offers this)
+## Next Steps
+- Add endpoint → rebuild → test success.
+- Monitor submissions in Formspree dashboard or server logs.
+- Optionally extend payload with `_subject`, `_replyto`, or spam controls.

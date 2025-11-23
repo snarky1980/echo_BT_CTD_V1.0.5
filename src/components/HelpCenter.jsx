@@ -437,7 +437,17 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'e
   const [status, setStatus] = useState('idle')
   const [errors, setErrors] = useState({})
 
-  const submissionUrl = contactEndpoint || `https://formsubmit.co/ajax/${encodeURIComponent(supportEmail)}`
+  // New service integration: require explicit endpoint (e.g. Formspree URL) via prop or env.
+  // If not provided, form will be disabled with a configuration notice.
+  const envEndpoint = (() => {
+    try {
+      const v = import.meta?.env?.VITE_SUPPORT_FORM_ENDPOINT
+      if (typeof v === 'string' && v.trim()) return v.trim()
+    } catch {}
+    return null
+  })()
+  const activeEndpoint = contactEndpoint || envEndpoint || null
+  const submissionUrl = activeEndpoint // May be null -> disable form
   const selectedCategory = contactOptions.find((option) => option.value === formData.category) || contactOptions[0] || null
   const isSubmitting = status === 'submitting'
   const feedbackMessage = status === 'success'
@@ -517,6 +527,12 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'e
     if (isSubmitting) return
 
     const validationErrors = {}
+    if (!submissionUrl) {
+      // Service not configured; prevent submission
+      setErrors({ service: language === 'fr' ? 'Service de formulaire non configuré.' : 'Form service not configured.' })
+      setStatus('error')
+      return
+    }
     if (!formData.name.trim()) {
       validationErrors.name = strings.contact.form.validation.nameRequired
     }
@@ -586,6 +602,7 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'e
           'Content-Type': 'application/json',
           Accept: 'application/json'
         },
+        // Formspree expects either form-encoded or JSON; JSON is accepted when header is set
         body: JSON.stringify(payload)
       })
 
@@ -1132,7 +1149,15 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'e
                     <p className="text-xs text-slate-500">{strings.contact.form.extraHelp}</p>
                   ) : null}
 
-                  {feedbackMessage ? (
+                  {(!submissionUrl) ? (
+                    <div className="flex items-start gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900">
+                      <AlertTriangle className="mt-0.5 h-4 w-4" aria-hidden="true" />
+                      <div>
+                        <p className="font-semibold">{language === 'fr' ? 'Configuration requise' : 'Configuration required'}</p>
+                        <p className="mt-1">{language === 'fr' ? 'Aucun service de soumission configuré. Ajoutez VITE_SUPPORT_FORM_ENDPOINT à .env avec votre URL Formspree.' : 'No submission service configured. Add VITE_SUPPORT_FORM_ENDPOINT in .env with your Formspree endpoint URL.'}</p>
+                      </div>
+                    </div>
+                  ) : feedbackMessage ? (
                     <div
                       className={`flex items-start gap-3 rounded-lg border p-3 text-sm ${status === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-700'}`}
                     >
