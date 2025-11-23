@@ -413,6 +413,9 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'j
     return contactOptions[0]?.value || 'support'
   }, [contactOptions])
 
+  // Direct-to-form mode: when opening directly to template submission, show only the form
+  const formOnly = initialCategory === 'template'
+
   // Auto-expand full mode when opening directly to template submission
   useEffect(() => {
     if (initialCategory === 'template') {
@@ -658,6 +661,7 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'j
             <span className="text-xl leading-none font-bold select-none" aria-hidden="true">×</span>
           </Button>
         </CardHeader>
+        {formOnly ? null : (
         <div className="flex items-center justify-between border-b border-[#e6eef5] px-2 py-1">
           <button
             onClick={() => setCompact(c => !c)}
@@ -672,9 +676,12 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'j
             </div>
           )}
         </div>
+        )}
         <CardContent className="flex-1 m-0 p-0" style={{ minHeight: 0 }}>
           <ScrollArea className="h-full w-full">
             <div className="space-y-4 m-0 p-0">
+              {formOnly ? null : (
+              <>
               {compact ? null : (
               <div className="flex flex-col gap-2 border-b border-[#e6eef5] bg-transparent md:flex-row md:items-center md:justify-between m-0 p-0">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-700">
@@ -913,6 +920,8 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 'j
                 ) : null}
               </section>
               <Separator className="bg-[#e6eef5]" />
+              </>
+              )}
               <section ref={contactFormRef} className="border-t border-[#bfe7e3] bg-transparent">
                 <div className="flex items-center gap-2 text-[#145a64]">
                   <Mail className="h-4 w-4" aria-hidden="true" />
