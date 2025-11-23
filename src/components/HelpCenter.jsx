@@ -181,7 +181,7 @@ const translations = {
         successMessage: 'Votre message a été transmis à l\'équipe. Nous vous répondrons sous deux jours ouvrables.',
         sendAnother: 'Envoyer une autre demande',
   errorTitle: 'Oups…',
-        errorMessage: (email) => `Impossible d\'envoyer pour le moment. Réessayez plus tard ou écrivez-nous à ${email}.`,
+        errorMessage: () => `Impossible d\'envoyer pour le moment. Réessayez plus tard ou contactez le support technique.`,
         validation: {
           nameRequired: 'Indiquez votre nom.',
           emailRequired: 'Entrez un courriel valide.',
@@ -365,7 +365,7 @@ const translations = {
         successMessage: 'Your message is on its way. We usually respond within two business days.',
         sendAnother: 'Send another request',
   errorTitle: 'Uh-oh…',
-        errorMessage: (email) => `We couldn\'t send your message. Try again later or reach us at ${email}.`,
+        errorMessage: () => `We couldn\'t send your message. Try again later or contact technical support.`,
         validation: {
           nameRequired: 'Please share your name.',
           emailRequired: 'Enter a valid email address.',
@@ -443,7 +443,7 @@ export default function HelpCenter({ language = 'fr', onClose, supportEmail = 's
   const feedbackMessage = status === 'success'
     ? strings.contact.form.successMessage
     : status === 'error'
-      ? strings.contact.form.errorMessage(supportEmail)
+      ? strings.contact.form.errorMessage()
       : ''
 
   useEffect(() => {
