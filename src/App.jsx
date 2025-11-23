@@ -1141,7 +1141,7 @@ function App() {
         if (trimmed) return trimmed
       }
     } catch {}
-    return 'jskennedy80@gmail.com'
+    return 'support@example.com'
   }, [])
   const supportFormEndpoint = useMemo(() => {
     try {
@@ -3881,6 +3881,7 @@ ${cleanBodyHtml}
         url.searchParams.set('helpOnly', '1')
         url.searchParams.set('lang', interfaceLanguage)
         url.searchParams.set('category', 'template')
+        url.searchParams.set('support', supportEmail)
         const w = Math.min(900, (window.screen?.availWidth || window.innerWidth) - 80)
         const h = Math.min(700, (window.screen?.availHeight || window.innerHeight) - 120)
         const left = Math.max(0, Math.floor(((window.screen?.availWidth || window.innerWidth) - w) / 2))
@@ -3914,6 +3915,7 @@ ${cleanBodyHtml}
         const url = new URL(window.location.href)
         url.searchParams.set('helpOnly', '1')
         url.searchParams.set('lang', interfaceLanguage)
+        url.searchParams.set('support', supportEmail)
         // Minimal compact help popout dimensions
         const preferredW = 560
         const preferredH = 620
