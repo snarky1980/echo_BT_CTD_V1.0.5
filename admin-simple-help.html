@@ -24,157 +24,201 @@
       ul{margin:0 0 0 18px}
       footer{padding:12px;color:var(--muted);text-align:center}
       @media (max-width: 700px){ main{padding:12px} }
+      /* new utility classes */
+      .mb12{margin-bottom:12px}
+      .para{margin-top:6px}
+      .note{font-size:12px;color:var(--muted);margin:0}
+      .focus-btn{margin-left:6px;padding:2px 8px;font-size:11px;border:1px solid var(--border);background:#fff;border-radius:8px;cursor:pointer}
+      .focus-btn:hover{background:#f1f5f9}
+      .form-grid{display:grid;gap:16px}
+      .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+      .fld-label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px}
+      .req{color:#dc2626}
+      .fld-input{width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit}
+      .fld-textarea{width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit;min-height:100px;resize:vertical}
+      .fld-textarea.short{min-height:80px}
+      .hint{font-size:11px;color:var(--muted);margin-top:2px}
+      .lang-hdr{margin:8px 0 0;padding-top:8px;border-top:1px solid var(--border)}
+      .submit-notice{display:none;padding:12px;border-radius:8px;margin-bottom:16px;font-size:14px;font-weight:600}
+      .hidden{display:none}
+      .mt16{margin-top:16px}
+      .actions{display:flex;gap:8px;justify-content:flex-end;padding-top:8px;border-top:1px solid var(--border)}
+      .lead{color:var(--muted);font-size:14px;margin:0 0 16px}
+      /* highlight style injected in parent may exist; keeping a local variant */
+      .ea-highlight-pulse{outline:3px solid #0ea5e9!important;animation:eaPulse 1.2s linear infinite;border-radius:8px}
+      @keyframes eaPulse{0%,100%{outline-color:#0ea5e9}50%{outline-color:#fbbf24}}
     </style>
   </head>
   <body>
     <header>
-      <div class="title">Aide — Modifier un modèle (sans programmation)</div>
+      <div class="title">Aide — Gérer les modèles (mode simple)</div>
       <div class="spacer"></div>
       <button class="btn" id="btn-toggle-submit" onclick="toggleSubmitForm()">📝 Soumettre un modèle</button>
       <button class="btn" onclick="window.close()">Fermer</button>
     </header>
     <main>
-      <div class="card" style="margin-bottom:12px">
-        <div class="chip">Conseil</div>
-        <div style="margin-top:6px">Tout est enregistré en brouillon local. « Réinitialiser » supprime le brouillon et recharge le fichier d’origine.</div>
+      <div class="card mb12">
+        <div class="chip">Info</div>
+        <div class="para">Tout reste en <strong>brouillon local</strong> (stocké dans votre navigateur) jusqu’à ce que vous exportiez. « Réinitialiser » recharge le fichier officiel.</div>
       </div>
-      <section class="card" style="margin-bottom:12px">
-        <h3>Option A — Modification rapide (dans la page)</h3>
+
+      <section class="card mb12">
+        <h3>1. Modifier un modèle existant</h3>
         <ol>
-          <li>Recherchez puis sélectionnez le modèle dans la liste (colonne de gauche).</li>
-          <li>Basculez la langue (FR/EN) en haut si nécessaire.</li>
-          <li>Modifiez <em>Titre</em>, <em>Description</em>, <em>Objet</em> et <em>Corps</em>.</li>
-          <li>Cliquez « Sync variables » pour détecter les <code>&lt;&lt;variables&gt;&gt;</code> dans Objet/Corps.</li>
-          <li>Cliquez « Ajouter variables manquantes » pour les ajouter au catalogue (bibliothèque de variables).</li>
-          <li>Exportez : « Exporter JSON » (ou « Exporter Excel ») pour partager vos changements.</li>
+          <li><strong>Sélection</strong> — Dans la colonne de gauche, cliquez sur la tuile du modèle. <button type="button" class="focus-btn" data-target="list">Voir</button></li>
+          <li><strong>Langue</strong> — Utilisez le sélecteur FR / EN en haut si vous devez changer la langue éditée.</li>
+          <li><strong>Champs</strong> — Modifiez <em>Titre</em>, <em>Description</em>, <em>Objet</em>, puis le <em>Corps</em>. <button type="button" class="focus-btn" data-target="tpl-title-fr">Titre FR</button> <button type="button" class="focus-btn" data-target="tpl-body-fr">Corps FR</button></li>
+          <li><strong>Variables</strong> — Tapez les placeholders <code>&lt;&lt;NomVariable&gt;&gt;</code> dans Objet/Corps. Elles sont détectées automatiquement et listées en bas.</li>
+          <li><strong>Sauvegarde</strong> — « Exporter JSON » ou « Exporter Excel ». <button type="button" class="focus-btn" data-target="btn-export">JSON</button> <button type="button" class="focus-btn" data-target="btn-export-xlsx">Excel</button></li>
         </ol>
       </section>
-      <section class="card" style="margin-bottom:12px">
-        <h3>Option B — Avec Excel (plusieurs modèles)</h3>
+
+      <section class="card mb12">
+        <h3>2. Supprimer un modèle</h3>
         <ol>
-          <li>Cliquez « Exporter Excel » pour obtenir l’état actuel en .xlsx.</li>
-          <li>Ouvrez le fichier dans Excel, modifiez ou ajoutez des lignes.
-            <ul>
-              <li>Conservez la syntaxe des variables : <code>&lt;&lt;NomVariable&gt;&gt;</code> (ex : <code>&lt;&lt;ProjectNumber&gt;&gt;</code>).</li>
-              <li>L’ID doit être unique (lettres/chiffres/souligné). Si doublon, l’import ajoutera un suffixe.</li>
-            </ul>
-          </li>
-          <li>Enregistrez puis « Importer Excel » dans la console simple pour charger vos changements.</li>
-          <li>Vérifiez la liste et faites des corrections au besoin ; tout reste en brouillon.</li>
-          <li>Exportez en JSON pour finaliser ou transmettre.</li>
+          <li><strong>Sélection</strong> — Cliquez la tuile. <button type="button" class="focus-btn" data-target="list">Voir</button></li>
+          <li><strong>Action</strong> — Cliquez « Supprimer ». <button type="button" class="focus-btn" data-target="btn-delete">Supprimer</button></li>
+          <li>Le modèle disparaît de la liste. Si erreur, utilisez « Réinitialiser » pour restaurer l’état officiel.</li>
+          <li>Exportez le JSON si vous devez transmettre la mise à jour sans ce modèle.</li>
+        </ol>
+        <p class="note">Astuce : la suppression ne touche que votre brouillon tant que vous n’avez pas remplacé le fichier officiel.</p>
+      </section>
+
+      <section class="card mb12">
+        <h3>3. Ajouter un nouveau modèle</h3>
+        <ol>
+          <li><strong>Création</strong> — Dans la colonne de gauche (« Modèles »), cliquez « Ajouter un modèle ». <button type="button" class="focus-btn" data-target="btn-new">Ajouter un modèle</button></li>
+          <li><strong>ID</strong> — Saisissez un identifiant simple (lettres, chiffres, underscore). Exemple: <code>welcome_client</code>.</li>
+          <li><strong>Complétez</strong> les champs FR et EN (Titre, Description, Objet, Corps). <button type="button" class="focus-btn" data-target="tpl-id">ID</button></li>
+          <li><strong>Placeholders</strong> — Insérez les variables nécessaires: <code>&lt;&lt;ClientName&gt;&gt;</code>, <code>&lt;&lt;ProjectNumber&gt;&gt;</code>, etc. Elles sont détectées automatiquement.</li>
+          <li><strong>Vérifiez</strong> l’orthographe, accents, cohérence FR/EN.</li>
+          <li><strong>Exportez</strong> via « Exporter JSON » pour transmettre le nouveau modèle ou via « Exporter Excel » si vous préparez plusieurs ajouts.</li>
+        </ol>
+        <p class="note">Besoin d’aide pour décrire les variables ? Ajoutez leur nom puis revenez plus tard compléter les descriptions.</p>
+      </section>
+
+      <section class="card mb12">
+        <h3>4. Modifier plusieurs modèles avec Excel (optionnel)</h3>
+        <ol>
+          <li>Cliquez « Exporter Excel » pour obtenir tous les modèles.</li>
+          <li>Ouvrez le fichier .xlsx et modifiez / ajoutez des lignes (garder la syntaxe <code>&lt;&lt;Var&gt;&gt;</code>).</li>
+          <li>Importez avec « Importer Excel » pour charger les changements en brouillon.</li>
+          <li>Revoyez chaque tuile si nécessaire puis exportez en JSON pour diffusion.</li>
         </ol>
       </section>
+
       <section class="card">
         <h3>FAQ rapide</h3>
         <ul>
-          <li><strong>Colonnes Excel manquantes</strong> — utilisez « Modèle XLSX/CSV » pour repartir d'un gabarit valide.</li>
-          <li><strong>Variables</strong> — la liste se remplit à partir des textes (Objet/Corps). Ajoutez ensuite leurs descriptions dans le catalogue.</li>
-          <li><strong>Publication</strong> — exportez le JSON et partagez-le, ou ouvrez le « Mode complet » si disponible.</li>
+          <li><strong>ID en doublon</strong> — un suffixe automatique est ajouté lors de l’import Excel.</li>
+          <li><strong>Variables non vues</strong> — relancez « Sync variables » après vos modifications de texte.</li>
+          <li><strong>Perte de changements</strong> — évitez de vider votre cache navigateur et exportez régulièrement.</li>
+          <li><strong>Réinitialiser</strong> — recharge la version officielle et efface votre brouillon local.</li>
         </ul>
       </section>
 
       <!-- Submit Template Form -->
-      <section id="submit-form-section" class="card" style="display:none;margin-top:16px">
+      <section id="submit-form-section" class="card hidden mt16">
         <h3>📝 Soumettre un nouveau modèle</h3>
-        <p style="color:var(--muted);font-size:14px;margin:0 0 16px">Partagez un modèle d'email que vous souhaitez ajouter à la bibliothèque.</p>
+        <p class="para lead">Partagez un modèle d'email que vous souhaitez ajouter à la bibliothèque.</p>
         
-        <div id="submit-notice" style="display:none;padding:12px;border-radius:8px;margin-bottom:16px;font-size:14px;font-weight:600"></div>
+        <div id="submit-notice" class="submit-notice"></div>
 
-        <form id="submit-form" style="display:grid;gap:16px">
+        <form id="submit-form" class="form-grid">
           <div>
-            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">ID du modèle <span style="color:#dc2626">*</span></label>
-            <input type="text" id="template-id" placeholder="ex: welcome_email" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
-            <div style="font-size:11px;color:var(--muted);margin-top:2px">Identifiant unique (lettres, chiffres, underscore)</div>
+            <label class="fld-label">ID du modèle <span class="req">*</span></label>
+            <input type="text" id="template-id" class="fld-input" placeholder="ex: welcome_email" required />
+            <div class="hint">Identifiant unique (lettres, chiffres, underscore)</div>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="two-col">
             <div>
-              <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Catégorie (FR) <span style="color:#dc2626">*</span></label>
-              <input type="text" id="category-fr" placeholder="Service client" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+              <label class="fld-label">Catégorie (FR) <span class="req">*</span></label>
+              <input type="text" id="category-fr" class="fld-input" placeholder="Service client" required />
             </div>
             <div>
-              <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Catégorie (EN) <span style="color:#dc2626">*</span></label>
-              <input type="text" id="category-en" placeholder="Customer Care" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+              <label class="fld-label">Catégorie (EN) <span class="req">*</span></label>
+              <input type="text" id="category-en" class="fld-input" placeholder="Customer Care" required />
             </div>
           </div>
 
-          <h4 style="margin:8px 0 0;padding-top:8px;border-top:1px solid var(--border)">🇫🇷 Version française</h4>
+          <h4 class="lang-hdr">🇫🇷 Version française</h4>
           
           <div>
-            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Titre (FR) <span style="color:#dc2626">*</span></label>
-            <input type="text" id="title-fr" placeholder="Bienvenue – Nouveau client" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+            <label class="fld-label">Titre (FR) <span class="req">*</span></label>
+            <input type="text" id="title-fr" class="fld-input" placeholder="Bienvenue – Nouveau client" required />
           </div>
 
           <div>
-            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Description (FR) <span style="color:#dc2626">*</span></label>
-            <input type="text" id="description-fr" placeholder="Courriel de bienvenue" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+            <label class="fld-label">Description (FR) <span class="req">*</span></label>
+            <input type="text" id="description-fr" class="fld-input" placeholder="Courriel de bienvenue" required />
           </div>
 
           <div>
-            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Objet (FR) <span style="color:#dc2626">*</span></label>
-            <input type="text" id="subject-fr" placeholder="Bienvenue !" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+            <label class="fld-label">Objet (FR) <span class="req">*</span></label>
+            <input type="text" id="subject-fr" class="fld-input" placeholder="Bienvenue !" required />
           </div>
 
           <div>
-            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Corps (FR) <span style="color:#dc2626">*</span></label>
-            <textarea id="body-fr" placeholder="Bonjour <<nom_client>>,&#10;&#10;Nous sommes ravis..." required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit;min-height:100px"></textarea>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px">Utilisez &lt;&lt;nom_variable&gt;&gt; pour les placeholders</div>
+            <label class="fld-label">Corps (FR) <span class="req">*</span></label>
+            <textarea id="body-fr" class="fld-textarea" placeholder="Bonjour <<nom_client>>,&#10;&#10;Nous sommes ravis..." required></textarea>
+            <div class="hint">Utilisez &lt;&lt;nom_variable&gt;&gt; pour les placeholders</div>
           </div>
 
-          <h4 style="margin:8px 0 0;padding-top:8px;border-top:1px solid var(--border)">🇬🇧 English version</h4>
+          <h4 class="lang-hdr">🇬🇧 English version</h4>
           
           <div>
-            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Title (EN) <span style="color:#dc2626">*</span></label>
-            <input type="text" id="title-en" placeholder="Welcome – New customer" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+            <label class="fld-label">Title (EN) <span class="req">*</span></label>
+            <input type="text" id="title-en" class="fld-input" placeholder="Welcome – New customer" required />
           </div>
 
           <div>
-            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Description (EN) <span style="color:#dc2626">*</span></label>
-            <input type="text" id="description-en" placeholder="Welcome email" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+            <label class="fld-label">Description (EN) <span class="req">*</span></label>
+            <input type="text" id="description-en" class="fld-input" placeholder="Welcome email" required />
           </div>
 
           <div>
-            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Subject (EN) <span style="color:#dc2626">*</span></label>
-            <input type="text" id="subject-en" placeholder="Welcome!" required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+            <label class="fld-label">Subject (EN) <span class="req">*</span></label>
+            <input type="text" id="subject-en" class="fld-input" placeholder="Welcome!" required />
           </div>
 
           <div>
-            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Body (EN) <span style="color:#dc2626">*</span></label>
-            <textarea id="body-en" placeholder="Hello <<customer_name>>,&#10;&#10;We're excited..." required style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit;min-height:100px"></textarea>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px">Use &lt;&lt;variable_name&gt;&gt; for placeholders</div>
+            <label class="fld-label">Body (EN) <span class="req">*</span></label>
+            <textarea id="body-en" class="fld-textarea" placeholder="Hello <<customer_name>>,&#10;&#10;We're excited..." required></textarea>
+            <div class="hint">Use &lt;&lt;variable_name&gt;&gt; for placeholders</div>
           </div>
 
-          <h4 style="margin:8px 0 0;padding-top:8px;border-top:1px solid var(--border)">📋 Variables (optionnel)</h4>
+          <h4 class="lang-hdr">📋 Variables (optionnel)</h4>
           
           <div>
-            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Description des variables (FR)</label>
-            <textarea id="variables-fr" placeholder="<<nom_client>>:Nom du client(Jean)&#10;<<numero_compte>>:Numéro de compte(AC-12345)" style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit;min-height:80px"></textarea>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px">Format: &lt;&lt;variable&gt;&gt;:Description(Exemple) – une par ligne</div>
+            <label class="fld-label">Description des variables (FR)</label>
+            <textarea id="variables-fr" class="fld-textarea short" placeholder="<<nom_client>>:Nom du client(Jean)&#10;<<numero_compte>>:Numéro de compte(AC-12345)"></textarea>
+            <div class="hint">Format: &lt;&lt;variable&gt;&gt;:Description(Exemple) – une par ligne</div>
           </div>
 
           <div>
-            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Variables description (EN)</label>
-            <textarea id="variables-en" placeholder="<<customer_name>>:Customer name(John)&#10;<<account_number>>:Account number(AC-12345)" style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit;min-height:80px"></textarea>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px">Format: &lt;&lt;variable&gt;&gt;:Description(Example) – one per line</div>
+            <label class="fld-label">Variables description (EN)</label>
+            <textarea id="variables-en" class="fld-textarea short" placeholder="<<customer_name>>:Customer name(John)&#10;<<account_number>>:Account number(AC-12345)"></textarea>
+            <div class="hint">Format: &lt;&lt;variable&gt;&gt;:Description(Example) – one per line</div>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="two-col">
             <div>
-              <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Votre nom</label>
-              <input type="text" id="submitter-name" placeholder="Jean Dupont" style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+              <label class="fld-label">Votre nom</label>
+              <input type="text" id="submitter-name" class="fld-input" placeholder="Jean Dupont" />
             </div>
             <div>
-              <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Votre email</label>
-              <input type="email" id="submitter-email" placeholder="jean@example.com" style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit" />
+              <label class="fld-label">Votre email</label>
+              <input type="email" id="submitter-email" class="fld-input" placeholder="jean@example.com" />
             </div>
           </div>
 
           <div>
-            <label style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px">Notes</label>
-            <textarea id="notes" placeholder="Commentaires ou contexte..." style="width:100%;border:1px solid var(--border);padding:8px 10px;border-radius:8px;font:inherit;min-height:60px"></textarea>
+            <label class="fld-label">Notes</label>
+            <textarea id="notes" class="fld-textarea short" placeholder="Commentaires ou contexte..."></textarea>
           </div>
 
-          <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:8px;border-top:1px solid var(--border)">
+          <div class="actions">
             <button type="button" class="btn" onclick="toggleSubmitForm()">Annuler</button>
             <button type="submit" class="btn primary">📤 Soumettre</button>
           </div>
@@ -269,6 +313,28 @@
           console.error('Submission error:', error);
           showNotice('❌ Erreur lors de la soumission. Veuillez réessayer.', 'error');
         }
+      });
+
+      // Highlight guidance linking to parent admin window
+      function highlightTarget(id){
+        const parent = window.opener?.document;
+        if(!parent) return;
+        const el = parent.getElementById(id);
+        if(!el) return;
+        // Inject style if missing
+        if(!parent.getElementById('ea-highlight-style')){
+          const st = parent.createElement('style');
+          st.id='ea-highlight-style';
+          st.textContent='.ea-highlight-pulse{outline:3px solid #0ea5e9!important;animation:eaPulse 1.2s linear infinite;border-radius:8px}@keyframes eaPulse{0%,100%{outline-color:#0ea5e9}50%{outline-color:#fbbf24}}';
+          parent.head.appendChild(st);
+        }
+        el.scrollIntoView({behavior:'smooth',block:'center'});
+        el.classList.add('ea-highlight-pulse');
+        el.focus?.();
+        setTimeout(()=>el.classList.remove('ea-highlight-pulse'),3000);
+      }
+      document.querySelectorAll('.focus-btn').forEach(btn=>{
+        btn.addEventListener('click',()=>highlightTarget(btn.dataset.target));
       });
     </script>
   </body>

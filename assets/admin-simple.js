@@ -11,14 +11,12 @@
   const list = $('#list');
   const search = $('#search');
   const file = $('#file');
-  const fileXlsx = $('#file-xlsx');
-  const btnImportXlsx = $('#btn-import-xlsx');
   const importModeEl = $('#import-mode');
-  const importAutoExportEl = $('#import-auto-export');
-  const btnCsvTpl = $('#btn-dl-template-csv');
   const btnXlsxTpl = $('#btn-dl-template-xlsx');
   const btnExportXlsx = $('#btn-export-xlsx');
   const btnHelp = $('#btn-help');
+  const btnExportMenu = $('#btn-export-menu');
+  const exportMenu = $('#export-menu');
   const hdr = $('#hdr');
   // editor fields
   const idEl = $('#tpl-id');
@@ -43,7 +41,6 @@
   const btnValidateVars = $('#btn-validate-vars');
   const varsValidationBox = $('#vars-validation');
   const btnPreview = $('#btn-preview');
-  const btnGithub = $('#btn-github');
 
   function notify(msg){ if (!notice) return; notice.textContent = msg; notice.style.display='block'; clearTimeout(notify._t); notify._t=setTimeout(()=>notice.style.display='none', 2000); }
   function ensureSchema(obj){
@@ -163,6 +160,20 @@
       .map(m => canonicalVar(stripLangSuffix(m[1])))
       .filter(Boolean);
     return Array.from(new Set(keys)).sort();
+  }
+  // Map detected placeholders to known library keys (match ignoring underscores/case)
+  function mapDetectedToKnown(keys){
+    const lib = data?.variables || {};
+    const libKeys = Object.keys(lib);
+    if (!libKeys.length) return keys;
+    const compact = (s) => String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'');
+    const byCompact = new Map();
+    libKeys.forEach(k => byCompact.set(compact(k), k));
+    return keys.map(k => {
+      if (lib[k]) return k;
+      const c = compact(k);
+      return byCompact.get(c) || k;
+    });
   }
   function uniqueId(base){ let id = base || 'modele'; let i=1; const taken = new Set((data.templates||[]).map(x=>String(x.id||'').toLowerCase())); while(taken.has(id.toLowerCase())) id = `${base}_${i++}`; return id; }
 
@@ -305,7 +316,7 @@
     }
     return { templates, variables, categoryLabels };
   }
-  async function handleXlsxImport(file, mode='merge', autoExport=false){
+  async function handleXlsxImport(file, mode='merge'){
     try{
       const rows = await readXlsx(file);
       const objs = rowsToObjects(rows);
@@ -320,9 +331,6 @@
         selected = data.templates[0]?.id || null;
         saveDraft(); renderList(); renderEditor();
         notify(`Import Excel (remplacement) effectué: ${data.templates.length} modèles, ${Object.keys(data.variables).length} variables.`);
-        if (autoExport) {
-          exportJson();
-        }
         return;
       }
       // merge (default)
@@ -346,7 +354,6 @@
       data.metadata.categories = Array.from(new Set(data.templates.map(t=>t.category).filter(Boolean))).sort();
       data.metadata.categoryLabels = { ...(data.metadata.categoryLabels||{}), ...out.categoryLabels };
       saveDraft(); renderList(); selected = out.templates[0]?.id || selected; renderEditor(); notify(`Import Excel (fusion) effectué: ${addedT} modèles, ${addedV} variables.`);
-      if (autoExport) exportJson();
     } catch(e){ console.error(e); notify('Import Excel invalide.'); }
   }
 
@@ -367,7 +374,7 @@
     if (labels) return labels.fr || labels.en || '';
     return t.category_fr || t.category_en || t.category || '';
   }
-  function renderList(){ const arr = filtered(); list.innerHTML = arr.map(x=>{ const ttl = x.title?.fr || x.title?.en || x.id; return `<div class="tile ${x.id===selected?'active':''}" data-id="${escapeHtml(x.id)}"><div style="font-weight:700">${escapeHtml(ttl)}</div><div style="color:#64748b;font-size:12px">${escapeHtml(getCategoryDisplay(x))}</div></div>`; }).join(''); $$('.tile', list).forEach(el=>{ el.onclick=()=>{ selected = el.dataset.id; renderList(); renderEditor(); }; }); }
+  function renderList(){ const arr = filtered(); list.innerHTML = arr.map(x=>{ const ttl = x.title?.fr || x.title?.en || x.id; return `<div class="tile ${x.id===selected?'active':''}" data-id="${escapeHtml(x.id)}"><div class="tile-title">${escapeHtml(ttl)}</div><div class="tile-sub">${escapeHtml(getCategoryDisplay(x))}</div></div>`; }).join(''); $$('.tile', list).forEach(el=>{ el.onclick=()=>{ selected = el.dataset.id; renderList(); renderEditor(); }; }); }
 
   function renderEditor(){ const t = (data.templates||[]).find(x=>x.id===selected) || null; hdr.textContent = t ? `Éditeur – ${t.id}` : 'Éditeur'; if (!t) { idEl.value=''; if (catFrEl) catFrEl.value=''; if (catEnEl) catEnEl.value=''; titleFrEl.value=''; titleEnEl.value=''; descFrEl.value=''; descEnEl.value=''; subjFrEl.value=''; subjEnEl.value=''; bodyFrEl.value=''; bodyEnEl.value=''; if (varsBox) varsBox.innerHTML=''; if (varsValidationBox) varsValidationBox.style.display='none'; return; }
     idEl.value = t.id || '';
@@ -382,27 +389,20 @@
     bodyFrEl.value = t.body?.fr || '';
     bodyEnEl.value = t.body?.en || '';
     // placeholders
-  const ph = detectPlaceholders(t); // used for variables union only
-  // Only show variables pertinent to this template (declared or detected placeholders)
-  const tVars = t.variables || [];
-  const detected = ph;
-  let all = Array.from(new Set([...(tVars||[]), ...detected])).sort();
+  const ph = detectPlaceholders(t);
+  // Only show detected placeholders, mapped to known library keys, and filter unknowns
+  let all = Array.from(new Set(mapDetectedToKnown(ph))).filter(k => (data.variables||{})[k]).sort();
   // filter by search
   const q = (varsSearchEl?.value||'').trim().toLowerCase();
   const matches = (k) => !q || k.toLowerCase().includes(q) || (data.variables?.[k]?.description?.fr||'').toLowerCase().includes(q) || (data.variables?.[k]?.description?.en||'').toLowerCase().includes(q);
   const filteredKeys = all.filter(matches);
   if (varsBox){
-    if (!filteredKeys.length){ varsBox.innerHTML = '<div class="chip" style="opacity:.7">Aucune</div>'; }
+    if (!filteredKeys.length){ varsBox.innerHTML = '<div class="chip muted">Aucune</div>'; }
     else {
       varsBox.innerHTML = filteredKeys.map(k=>{
         const v = data.variables?.[k];
-        const hasFr = !!(v?.description?.fr);
-        const hasEn = !!(v?.description?.en);
-        const hasDefFr = !!(v?.example?.fr);
-        const hasDefEn = !!(v?.example?.en);
         const title = `FR: ${escapeHtml(v?.description?.fr||'')} | EN: ${escapeHtml(v?.description?.en||'')} | Défaut FR: ${escapeHtml(v?.example?.fr||'')} | Défaut EN: ${escapeHtml(v?.example?.en||'')}`;
-        const style = (!hasFr || !hasEn || !hasDefFr || !hasDefEn) ? 'style="background:#fff7ed;border-color:#fdba74;color:#9a3412"' : '';
-        return `<span class="chip" ${style} title="${title}">${escapeHtml(k)}</span>`;
+        return `<span class="chip" title="${title}">${escapeHtml(k)}</span>`;
       }).join('');
     }
   }
@@ -412,10 +412,9 @@
   function getTemplateVarKeys(){
     const t = (data.templates||[]).find(x=>x.id===selected);
     if (!t) return [];
-    const fromList = Array.isArray(t.variables) ? t.variables : [];
-    // Union with detected placeholders so user sees fresh variables even before syncing
-    const detected = detectPlaceholders(t);
-    return Array.from(new Set([...(fromList||[]), ...detected])).sort();
+    // Only detected placeholders mapped to known library keys
+    const mapped = mapDetectedToKnown(detectPlaceholders(t));
+    return Array.from(new Set(mapped)).filter(k => (data.variables||{})[k]).sort();
   }
   function renderVarsEditor(){
     if (!varsEditorBox) return;
@@ -483,7 +482,7 @@
 
   // Copy variable lines (FR/EN) to clipboard
   function buildVarLinesForTemplate(t, lang){
-    const keys = t.variables || [];
+    const keys = getTemplateVarKeys();
     return keys.map(k => {
       const v = data.variables?.[k];
       const desc = (lang==='fr' ? (v?.description?.fr || `Valeur pour ${k}`) : (v?.description?.en || `Value for ${k}`));
@@ -503,7 +502,7 @@
   // Validation: list missing FR/EN/default for current template variables
   function validateTemplateVars(){
     const t = data.templates.find(x=>x.id===selected); if (!t || !varsValidationBox) return;
-    const keys = t.variables || [];
+    const keys = getTemplateVarKeys();
     const missingFr = []; const missingEn = []; const missingDefFr = []; const missingDefEn = [];
     keys.forEach(k => { const v=data.variables?.[k]||{}; if(!v.description?.fr) missingFr.push(k); if(!v.description?.en) missingEn.push(k); if(!v.example?.fr) missingDefFr.push(k); if(!v.example?.en) missingDefEn.push(k); });
     const parts = [];
@@ -516,12 +515,39 @@
   }
 
   // simple variable actions
-  function syncTemplateVariables(){
-    const t = data.templates.find(x=>x.id===selected); if (!t) return;
-    const ph = Array.from(new Set(detectPlaceholders(t)));
-    t.variables = ph;
-    saveDraft(); renderEditor(); notify('Variables synchronisées.');
+  // Internal: detect placeholders, map to known keys, update template + library
+  function performVariableSync({ silent = false } = {}){
+    const t = data.templates.find(x=>x.id===selected); if (!t) return { changed:false };
+    const detected = Array.from(new Set(detectPlaceholders(t)));
+    const mapped = Array.from(new Set(mapDetectedToKnown(detected)));
+    const lib = data.variables || (data.variables = {});
+    // Track if library gets new keys
+    let libAdded = 0;
+    mapped.forEach(k => { if (!lib[k]) { lib[k] = { description:{fr:'',en:''}, format:'text', example:{fr:'',en:''} }; libAdded++; } });
+    // Compare with existing template variables
+    const prev = Array.isArray(t.variables) ? Array.from(new Set(t.variables)) : [];
+    const prevKey = prev.join('|');
+    const nextKey = mapped.join('|');
+    const changed = (prevKey !== nextKey) || (libAdded > 0);
+    if (changed){
+      t.variables = mapped;
+      saveDraft();
+      renderEditor();
+    }
+    if (!silent){
+      try {
+        const varsEl = document.getElementById('vars');
+        if (varsEl){ varsEl.classList.add('ea-highlight-pulse'); setTimeout(()=>varsEl.classList.remove('ea-highlight-pulse'), 1200); }
+      } catch {}
+      const total = mapped.length; const knownCount = mapped.filter(k=>!!lib[k]).length; const unknownCount = mapped.length - knownCount;
+      if (total===0) notify('Aucune variable détectée.');
+      else notify(`Variables synchronisées: ${total} détectée(s) • ${knownCount} reconnue(s) • ${unknownCount} inconnue(s)`);
+    }
+    return { changed };
   }
+  function syncTemplateVariables(){ performVariableSync({ silent:false }); }
+  let autoSyncTimer = null;
+  function scheduleAutoSync(){ clearTimeout(autoSyncTimer); autoSyncTimer = setTimeout(()=>performVariableSync({ silent:true }), 600); }
   function addMissingVariablesToLibrary(){
     const t = data.templates.find(x=>x.id===selected); if (!t) return;
     const ph = Array.from(new Set(detectPlaceholders(t)));
@@ -540,26 +566,20 @@
     const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='complete_email_templates.json'; document.body.appendChild(a); a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000); a.remove();
   }
-  $('#btn-export').onclick = exportJson;
-  // Update (danger) button: confirm + timestamp then export
-  const btnUpdateJson = $('#btn-update-json');
-  if (btnUpdateJson) btnUpdateJson.onclick = async () => {
-    if (!confirm('Publier immédiatement le JSON sur les branches main + gh-pages (remplacement) ?')) return;
-    try { data.metadata.updatedAt = new Date().toISOString(); } catch {}
-    // Ensure repo + token configuration
-    let token = localStorage.getItem('ea_gh_token');
-    let repoOverride = localStorage.getItem('ea_gh_repo');
-    if (!token){
-      token = prompt('GitHub Token (repo scope: contents write). Entrez-le pour publier maintenant:');
-      if (token){ localStorage.setItem('ea_gh_token', token.trim()); }
-    }
-    if (!repoOverride){
-      const guessRepo = document.querySelector('meta[name="gh-repo"]')?.content || '';
-      const repoInput = prompt('Owner/Repo pour publication (ex: snarky1980/echo-bt-ctd). Laissez vide pour utiliser meta.', guessRepo);
-      if (repoInput && repoInput.trim()) { repoOverride = repoInput.trim(); localStorage.setItem('ea_gh_repo', repoOverride); }
-    }
-    publishJsonToGitHub(true).catch(err => { console.error('Publish failed, fallback to download', err); exportJson(); });
+  // Export menu handlers
+  if (btnExportMenu) btnExportMenu.onclick = (e) => {
+    e.stopPropagation();
+    if (!exportMenu) return;
+    exportMenu.style.display = exportMenu.style.display === 'none' || !exportMenu.style.display ? 'block' : 'none';
   };
+  document.addEventListener('click', (e) => {
+    if (!exportMenu) return;
+    const within = exportMenu.contains(e.target) || btnExportMenu.contains(e.target);
+    if (!within) exportMenu.style.display = 'none';
+  });
+  const actDownload = document.getElementById('act-export-download');
+  if (actDownload) actDownload.onclick = (e) => { e.stopPropagation(); exportMenu.style.display='none'; exportJson(); };
+  // Removed legacy danger update button; publishing is available via Exporter menu
 
   async function publishJsonToGitHub(showToast){
     (data.templates||[]).forEach(syncTemplateCategory);
@@ -606,7 +626,7 @@
   }
 
   // Simple GitHub configuration via prompts
-  if (btnGithub) btnGithub.onclick = async () => {
+  async function configureGithub(){
     const curRepo = localStorage.getItem('ea_gh_repo') || '';
     const curTok = localStorage.getItem('ea_gh_token') || '';
     const repo = prompt('Owner/Repo (ex: snarky1980/echo-bt-ctd). Laissez vide pour auto-détection.', curRepo);
@@ -619,11 +639,34 @@
       if (!token) localStorage.removeItem('ea_gh_token');
     }
     notify('Configuration GitHub mise à jour.');
-  };
+  }
+  const actPublish = document.getElementById('act-export-github');
+  if (actPublish) actPublish.onclick = async (e) => { e.stopPropagation(); if (exportMenu) exportMenu.style.display='none'; await publishJsonToGitHub(true); };
+  const actConfig = document.getElementById('act-export-config');
+  if (actConfig) actConfig.onclick = async (e) => { e.stopPropagation(); if (exportMenu) exportMenu.style.display='none'; await configureGithub(); };
   $('#btn-import').onclick = () => file.click();
-  file.onchange = async (e) => { const f=e.target.files?.[0]; if (!f) return; try{ const txt=await f.text(); const json=ensureSchema(JSON.parse(txt)); data=json; selected = data.templates[0]?.id || null; saveDraft(); loadInitialUI(); notify('Import effectué.'); }catch(err){ console.error(err); notify('Import invalide.'); } finally { e.target.value=''; } };
-  if (btnImportXlsx) btnImportXlsx.onclick = () => fileXlsx?.click();
-  if (fileXlsx) fileXlsx.onchange = async (e) => { const f = e.target.files?.[0]; if (!f) return; const mode = importModeEl?.value || 'merge'; const auto = !!importAutoExportEl?.checked; await handleXlsxImport(f, mode, auto); e.target.value=''; };
+  file.onchange = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const isXlsx = /\.xlsx$/i.test(f.name) || /sheet|excel/i.test(f.type || '');
+    try {
+      if (isXlsx) {
+        const mode = importModeEl?.value || 'merge';
+        await handleXlsxImport(f, mode);
+      } else {
+        const txt = await f.text();
+        const json = ensureSchema(JSON.parse(txt));
+        data = json;
+        selected = data.templates[0]?.id || null;
+        saveDraft();
+        loadInitialUI();
+        notify('Import effectué.');
+      }
+    } catch (err) {
+      console.error(err);
+      notify('Import invalide.');
+    } finally { e.target.value=''; }
+  };
   // Template downloads
   const TEMPLATE_HEADERS = ['ID','CATEGORY_EN','CATEGORY_FR','DESCRIPTION_EN','DESCRIPTION_FR','TITLE_EN','TITLE_FR','TEMPLATE_EN','TEMPLATE_FR','VARIABLES_DESCRIPTION_EN','VARIABLES_DESCRIPTION_FR'];
   const SAMPLE_ROW = [
@@ -639,12 +682,6 @@
     '<<customer_name_EN>>:Customer name(Emily)\n<<account_number_EN>>:Account number(AC-12345)',
     '<<customer_name_FR>>:Nom du client(Emily)\n<<account_number_FR>>:Numéro de compte(AC-12345)'
   ];
-  function downloadCsvTemplate(){
-    const escape = (v) => '"'+String(v).replace(/"/g,'""')+'"';
-    const lines = [TEMPLATE_HEADERS.join(','), SAMPLE_ROW.map(escape).join(',')];
-    const blob = new Blob([lines.join('\n')], { type:'text/csv;charset=utf-8' });
-    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='template_email_assistant.csv'; document.body.appendChild(a); a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); a.remove();
-  }
   async function downloadXlsxTemplate(){
     try {
       const XLSX = await getXLSX();
@@ -657,7 +694,6 @@
       const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='template_email_assistant.xlsx'; document.body.appendChild(a); a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); a.remove();
     } catch(e){ console.error(e); notify('Impossible de générer XLSX'); }
   }
-  if (btnCsvTpl) btnCsvTpl.onclick = downloadCsvTemplate;
   if (btnXlsxTpl) btnXlsxTpl.onclick = downloadXlsxTemplate;
   async function exportCurrentToXlsx(){
     try {
@@ -735,35 +771,69 @@
   $('#btn-category-colors').onclick = () => {
     const modal = $('#modal-category-colors');
     const list = $('#category-colors-list');
-    const allCats = new Set();
-    (data.templates||[]).forEach(t => {
-      if (t.category_fr) allCats.add(t.category_fr);
-      if (t.category_en) allCats.add(t.category_en);
-    });
-    const sorted = Array.from(allCats).sort();
-    list.innerHTML = sorted.map(cat => {
-      const color = data.metadata.categoryColors?.[cat] || '#5a88b5';
-      return `<div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:10px;border:1px solid var(--border);border-radius:10px;background:#fafafa">
-        <label style="font-weight:700;color:#334155">${escapeHtml(cat)}</label>
-        <input type="color" value="${escapeHtml(color)}" data-category="${escapeHtml(cat)}" style="width:60px;height:36px;border:1px solid var(--border);border-radius:6px;cursor:pointer" />
+    // Default styles mirrored from Web App (src/App.jsx CATEGORY_BADGE_STYLES)
+    const CATEGORY_DEFAULTS = {
+      quotes_and_approvals: { bg: '#ede9fe', border: '#c4b5fd', text: '#1c2f4a' },
+      follow_ups_and_cancellations: { bg: '#ffe4e6', border: '#fecdd3', text: '#1c2f4a' },
+      documents_and_formatting: { bg: '#e0f2fe', border: '#bae6fd', text: '#1c2f4a' },
+      deadlines_and_delivery: { bg: '#ffedd5', border: '#fdba74', text: '#1c2f4a' },
+      clarifications_and_client_instructions: { bg: '#fef3c7', border: '#fde68a', text: '#1c2f4a' },
+      security_and_copyright: { bg: '#fee2e2', border: '#fecaca', text: '#1c2f4a' },
+      quality_assurance: { bg: '#dcfce7', border: '#bbf7d0', text: '#1c2f4a' },
+      terminology_and_glossaries: { bg: '#cffafe', border: '#a5f3fc', text: '#1c2f4a' },
+      revisions_and_feedback: { bg: '#fae8ff', border: '#f0abfc', text: '#1c2f4a' },
+      team_coordination: { bg: '#e0e7ff', border: '#c7d2fe', text: '#1c2f4a' },
+      technical_issues: { bg: '#ccfbf1', border: '#99f6e4', text: '#1c2f4a' },
+      general_inquiries: { bg: '#f1f5f9', border: '#cbd5e1', text: '#1c2f4a' },
+      default: { bg: '#e6f0ff', border: '#c7dbff', text: '#1c2f4a' }
+    };
+    // Use canonical category keys to ensure web app consistency
+    const keys = Array.from(new Set((data.metadata?.categories || []).filter(Boolean)));
+    const labels = data.metadata?.categoryLabels || {};
+    const cc = data.metadata?.categoryColors || {};
+    const rows = keys.sort().map(key => {
+      const labelFr = labels[key]?.fr || '';
+      const labelEn = labels[key]?.en || '';
+      const label = (labelFr || labelEn || key);
+      // Prefer color by key; fall back to legacy label-based entries if present
+      const defaults = CATEGORY_DEFAULTS[key] || CATEGORY_DEFAULTS.default;
+      const fallbackColor = defaults.border; // show per-category default (matches app tone)
+      const color = (cc[key] || cc[labelFr] || cc[labelEn] || fallbackColor);
+      const isCustom = !!(cc[key] || cc[labelFr] || cc[labelEn]);
+      return `<div class="cat-row">
+        <label class="cat-label">${escapeHtml(label)}</label>
+        <div class="cat-controls">
+          <div title="Aperçu (Web App)" class="cat-preview" style="border:2px solid ${defaults.border}; background:${defaults.bg}; color:${defaults.text}">Aa</div>
+          <input class="cat-color" type="color" value="${escapeHtml(color)}" data-key="${escapeHtml(key)}" data-source="${isCustom ? 'custom' : 'default'}" />
+        </div>
       </div>`;
     }).join('');
+    list.innerHTML = rows || '<div class="tile-sub">Aucune catégorie trouvée.</div>';
     modal.style.display = 'flex';
+
+    // Mark inputs as custom when changed
+    list.querySelectorAll('input[type="color"]').forEach(inp => {
+      inp.addEventListener('input', () => { inp.dataset.source = 'custom'; });
+    });
   };
   $('#btn-save-category-colors').onclick = () => {
     const inputs = document.querySelectorAll('#category-colors-list input[type="color"]');
+    if (!data.metadata.categoryColors) data.metadata.categoryColors = {};
     inputs.forEach(inp => {
-      const cat = inp.dataset.category;
+      const key = inp.dataset.key;
       const val = inp.value;
-      if (cat) data.metadata.categoryColors[cat] = val;
+      // Only persist if it's a custom override or changed by the user
+      if (key && (inp.dataset.source === 'custom')) data.metadata.categoryColors[key] = val;
     });
     saveDraft();
     notify('Couleurs des catégories enregistrées.');
     $('#modal-category-colors').style.display = 'none';
   };
-  // variables buttons
-  $('#btn-sync-vars').onclick = syncTemplateVariables;
-  $('#btn-add-missing').onclick = addMissingVariablesToLibrary;
+  // variables buttons (optional, may be absent)
+  const btnSyncVars = $('#btn-sync-vars');
+  if (btnSyncVars) btnSyncVars.onclick = syncTemplateVariables;
+  const btnAddMissing = $('#btn-add-missing');
+  if (btnAddMissing) btnAddMissing.onclick = addMissingVariablesToLibrary;
   // Always visible variables editor; render after load
 
   // inputs update
@@ -774,10 +844,10 @@
   titleEnEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.title=t.title||{}; t.title.en=e.target.value; saveDraft(); renderList(); };
   descFrEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.description=t.description||{}; t.description.fr=e.target.value; saveDraft(); };
   descEnEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.description=t.description||{}; t.description.en=e.target.value; saveDraft(); };
-  subjFrEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.subject=t.subject||{}; t.subject.fr=e.target.value; saveDraft(); renderEditor(); };
-  subjEnEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.subject=t.subject||{}; t.subject.en=e.target.value; saveDraft(); renderEditor(); };
-  bodyFrEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.body=t.body||{}; t.body.fr=e.target.value; saveDraft(); renderEditor(); };
-  bodyEnEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.body=t.body||{}; t.body.en=e.target.value; saveDraft(); renderEditor(); };
+  subjFrEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.subject=t.subject||{}; t.subject.fr=e.target.value; saveDraft(); renderEditor(); scheduleAutoSync(); };
+  subjEnEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.subject=t.subject||{}; t.subject.en=e.target.value; saveDraft(); renderEditor(); scheduleAutoSync(); };
+  bodyFrEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.body=t.body||{}; t.body.fr=e.target.value; saveDraft(); renderEditor(); scheduleAutoSync(); };
+  bodyEnEl.oninput = (e) => { const t=data.templates.find(x=>x.id===selected); if (!t) return; t.body=t.body||{}; t.body.en=e.target.value; saveDraft(); renderEditor(); scheduleAutoSync(); };
   search.oninput = (e) => { term = e.target.value; renderList(); };
   if (varsSearchEl) varsSearchEl.oninput = () => renderEditor();
   if (btnCopyVarsFr) btnCopyVarsFr.onclick = () => copyVarLines('fr');
