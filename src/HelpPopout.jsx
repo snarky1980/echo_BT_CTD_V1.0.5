@@ -12,7 +12,7 @@ export default function HelpPopout() {
   }, [])
 
   return (
-    <div className="min-h-screen w-full">
+    <div className="w-full h-full overflow-auto">
       <HelpCenter language={language} onClose={onClose} supportEmail={supportEmail} />
     </div>
   )

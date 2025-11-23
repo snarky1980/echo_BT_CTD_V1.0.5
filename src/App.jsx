@@ -3914,8 +3914,13 @@ ${cleanBodyHtml}
         const url = new URL(window.location.href)
         url.searchParams.set('helpOnly', '1')
         url.searchParams.set('lang', interfaceLanguage)
-        const w = Math.min(900, (window.screen?.availWidth || window.innerWidth) - 80)
-        const h = Math.min(700, (window.screen?.availHeight || window.innerHeight) - 120)
+        // Minimal compact help popout dimensions
+        const preferredW = 560
+        const preferredH = 620
+        const availW = (window.screen?.availWidth || window.innerWidth) - 40
+        const availH = (window.screen?.availHeight || window.innerHeight) - 40
+        const w = Math.min(preferredW, availW)
+        const h = Math.min(preferredH, availH)
         const left = Math.max(0, Math.floor(((window.screen?.availWidth || window.innerWidth) - w) / 2))
         const top = Math.max(0, Math.floor(((window.screen?.availHeight || window.innerHeight) - h) / 3))
         const features = `popup=yes,width=${Math.round(w)},height=${Math.round(h)},left=${left},top=${top},toolbar=0,location=0,menubar=0,status=0,scrollbars=1,resizable=1,noopener=1`
