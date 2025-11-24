@@ -21773,14 +21773,24 @@ EndFragment:${pad(endFragmentBytes)}\r
         const b = parseInt(m[3]).toString(16).padStart(2, "0");
         return `#${r2}${g}${b}`;
       };
+      const hexToRgb = (hex) => {
+        if (!hex) return null;
+        const clean = hex.replace("#", "");
+        if (clean.length !== 6) return null;
+        return {
+          r: parseInt(clean.slice(0, 2), 16),
+          g: parseInt(clean.slice(2, 4), 16),
+          b: parseInt(clean.slice(4, 6), 16)
+        };
+      };
       const htmlToRtf = (html) => {
         if (!html) return "";
         const temp = document.createElement("div");
         temp.innerHTML = html;
         const colors = /* @__PURE__ */ new Map();
-        const fonts = /* @__PURE__ */ new Map();
+        const fonts = /* @__PURE__ */ new Map([["Arial", 0]]);
         let colorIndex = 1;
-        let fontIndex = 0;
+        let fontIndex = 1;
         const collect = (el) => {
           if (el.nodeType !== Node.ELEMENT_NODE) return;
           const style = el.getAttribute("style") || "";
@@ -21801,10 +21811,13 @@ EndFragment:${pad(endFragmentBytes)}\r
           Array.from(el.children).forEach(collect);
         };
         Array.from(temp.children).forEach(collect);
-        const fontEntries = Array.from(fonts.keys());
-        const colorEntries = Array.from(colors.keys());
-        const fonttbl = `{\\fonttbl${fontEntries.map((f, i) => `{\\f${i}\\fnil ${f};}`).join("")}}`;
-        const colortbl = `{\\colortbl;${colorEntries.map((c) => c).map((c) => c).map((c) => c).map((c) => `${c}`).join(";")};}`;
+        const fontEntries = Array.from(fonts.entries()).sort((a, b) => a[1] - b[1]);
+        const colorEntries = Array.from(colors.entries()).sort((a, b) => a[1] - b[1]);
+        const fonttbl = `{\\fonttbl${fontEntries.map(([name, idx]) => `{\\f${idx}\\fnil ${name};}`).join("")}}`;
+        const colortbl = `{\\colortbl;${colorEntries.map(([hex]) => {
+          const rgb = hexToRgb(hex) || { r: 0, g: 0, b: 0 };
+          return `\\red${rgb.r}\\green${rgb.g}\\blue${rgb.b}`;
+        }).join(";")};}`;
         const escapeRtf = (s) => String(s).replace(/\\/g, "\\\\").replace(/{/g, "\\{").replace(/}/g, "\\}").replace(/\n/g, "\\par ");
         const nodeToRtf = (node, state = {}) => {
           if (node.nodeType === Node.TEXT_NODE) {
@@ -24788,4 +24801,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-Dw6pqCu3.js.map
+//# sourceMappingURL=main-sJRlAxRW.js.map
