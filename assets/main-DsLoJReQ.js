@@ -21299,20 +21299,50 @@ function App() {
       "rgba(219,234,254,1)"
     ]);
     const isDefaultPillBackground2 = (color = "") => defaultPillBackgrounds2.has(normalizeColor2(color));
+    const pillStyleStripList = /* @__PURE__ */ new Set([
+      "border",
+      "border-top",
+      "border-right",
+      "border-bottom",
+      "border-left",
+      "border-radius",
+      "box-shadow",
+      "padding",
+      "padding-top",
+      "padding-right",
+      "padding-bottom",
+      "padding-left"
+    ]);
+    const sanitizeStyleString = (style = "") => {
+      const parts = style.split(";");
+      const keep = [];
+      parts.forEach((part) => {
+        if (!part) return;
+        const [propRaw, valueRaw] = part.split(":");
+        if (!valueRaw) return;
+        const prop = propRaw.trim().toLowerCase();
+        const value = valueRaw.trim();
+        if (!prop || !value) return;
+        if (pillStyleStripList.has(prop)) return;
+        if (prop.startsWith("border-") && pillStyleStripList.has("border")) return;
+        if (prop.startsWith("padding-") && pillStyleStripList.has("padding")) return;
+        if (prop === "background-color" && isDefaultPillBackground2(value)) return;
+        if (prop === "background" && isDefaultPillBackground2(value)) return;
+        keep.push(`${prop}: ${value}`);
+      });
+      return keep.join("; ");
+    };
     const removeDefaultHighlights = (root) => {
       if (!root || typeof root.querySelectorAll !== "function") return;
       root.querySelectorAll("*").forEach((el) => {
         var _a2;
         const style = ((_a2 = el.getAttribute) == null ? void 0 : _a2.call(el, "style")) || "";
         if (!style) return;
-        const bgMatch = style.match(/background-color\s*:\s*([^;]+)/i);
-        if (bgMatch && isDefaultPillBackground2(bgMatch[1])) {
-          const cleaned = style.replace(/background-color\s*:[^;]+;?/i, "").trim();
-          if (cleaned.length) {
-            el.setAttribute("style", cleaned.endsWith(";") ? cleaned : `${cleaned};`);
-          } else {
-            el.removeAttribute("style");
-          }
+        const sanitized = sanitizeStyleString(style);
+        if (sanitized) {
+          el.setAttribute("style", sanitized.endsWith(";") ? sanitized : `${sanitized};`);
+        } else {
+          el.removeAttribute("style");
         }
       });
     };
@@ -21442,6 +21472,7 @@ function App() {
       });
     });
     makeOutlookFriendly(wrapper);
+    removeDefaultHighlights(wrapper);
     const htmlResult = wrapper.innerHTML;
     if (fallbackPlainText) {
       return { html: htmlResult, text: fallbackPlainText };
@@ -21621,7 +21652,7 @@ function App() {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="margin: 0; padding: 0;">
-<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000000;">
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000000; background-color: #ffffff;">
 ${bodyResult.html}
 </div>
 </body>
@@ -21637,7 +21668,7 @@ ${bodyResult.html}
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="margin: 0; padding: 0;">
-<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000000;">
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000000; background-color: #ffffff;">
 <div><strong>Subject:</strong> ${subjectResult.html || toSimpleHtml(resolvedSubject)}</div>
 <br>
 <div>${bodyResult.html}</div>
@@ -24560,4 +24591,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-ClmHW8Jb.js.map
+//# sourceMappingURL=main-DsLoJReQ.js.map
