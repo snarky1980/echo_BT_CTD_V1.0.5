@@ -10711,6 +10711,19 @@ const BLOCK_ELEMENTS = /* @__PURE__ */ new Set([
 ]);
 const convertPlainTextToHtml = (text = "") => escapeHtml(text).replace(/\r\n|\r/g, "\n").replace(/\n/g, '<br data-line-break="true">');
 const PILL_TEMPLATE_TOKEN = "__RT_PILL_VALUE__";
+const normalizeColor = (value = "") => String(value || "").replace(/\s+/g, "").toLowerCase();
+const defaultPillBackgrounds = /* @__PURE__ */ new Set([
+  "rgb(245,243,232)",
+  // #f5f3e8 filled background
+  "rgba(245,243,232,1)",
+  "rgb(254,249,195)",
+  // #fef9c3 empty background
+  "rgba(254,249,195,1)",
+  "rgb(219,234,254)",
+  // #dbeafe focus background
+  "rgba(219,234,254,1)"
+]);
+const isDefaultPillBackground = (color = "") => defaultPillBackgrounds.has(normalizeColor(color));
 const createFormattingTemplate = (pill) => {
   if (!pill) return null;
   const clone = pill.cloneNode(true);
@@ -10739,7 +10752,7 @@ const createFormattingTemplate = (pill) => {
     });
     const bgColor = computedStyle.backgroundColor;
     const bgColorNormalized = bgColor == null ? void 0 : bgColor.replace(/\s/g, "");
-    if (bgColor && bgColorNormalized !== "rgba(0,0,0,0)" && bgColorNormalized !== "transparent" && bgColorNormalized !== "rgb(255,255,255)" && bgColorNormalized !== "rgba(255,255,255,1)") {
+    if (bgColor && bgColorNormalized !== "rgba(0,0,0,0)" && bgColorNormalized !== "transparent" && bgColorNormalized !== "rgb(255,255,255)" && bgColorNormalized !== "rgba(255,255,255,1)" && !isDefaultPillBackground(bgColor)) {
       inlineStyle += `background-color: ${bgColor}; `;
     }
     if (inlineStyle) {
@@ -21273,6 +21286,36 @@ function App() {
     };
     const wrapper = document.createElement("div");
     wrapper.innerHTML = ensureHtmlString(htmlText);
+    const normalizeColor2 = (value = "") => String(value || "").replace(/\s+/g, "").toLowerCase();
+    const defaultPillBackgrounds2 = /* @__PURE__ */ new Set([
+      "rgb(245,243,232)",
+      // #f5f3e8 filled background
+      "rgba(245,243,232,1)",
+      "rgb(254,249,195)",
+      // #fef9c3 empty background
+      "rgba(254,249,195,1)",
+      "rgb(219,234,254)",
+      // #dbeafe focus background
+      "rgba(219,234,254,1)"
+    ]);
+    const isDefaultPillBackground2 = (color = "") => defaultPillBackgrounds2.has(normalizeColor2(color));
+    const removeDefaultHighlights = (root) => {
+      if (!root || typeof root.querySelectorAll !== "function") return;
+      root.querySelectorAll("*").forEach((el) => {
+        var _a2;
+        const style = ((_a2 = el.getAttribute) == null ? void 0 : _a2.call(el, "style")) || "";
+        if (!style) return;
+        const bgMatch = style.match(/background-color\s*:\s*([^;]+)/i);
+        if (bgMatch && isDefaultPillBackground2(bgMatch[1])) {
+          const cleaned = style.replace(/background-color\s*:[^;]+;?/i, "").trim();
+          if (cleaned.length) {
+            el.setAttribute("style", cleaned.endsWith(";") ? cleaned : `${cleaned};`);
+          } else {
+            el.removeAttribute("style");
+          }
+        }
+      });
+    };
     const makeOutlookFriendly = (element) => {
       element.querySelectorAll("*").forEach((el) => {
         if (["BR", "HR"].includes(el.tagName)) return;
@@ -21298,7 +21341,7 @@ function App() {
         }
         const bgColor = computedStyle.backgroundColor;
         const bgColorRgb = bgColor.replace(/\s/g, "");
-        if (bgColor && bgColorRgb !== "rgba(0,0,0,0)" && bgColorRgb !== "transparent" && !existingStyle.includes("background-color")) {
+        if (bgColor && bgColorRgb !== "rgba(0,0,0,0)" && bgColorRgb !== "transparent" && !existingStyle.includes("background-color") && !isDefaultPillBackground2(bgColor)) {
           newStyle += `background-color: ${bgColor}; `;
         }
         const fontWeight = computedStyle.fontWeight;
@@ -21381,12 +21424,14 @@ function App() {
           const applied = template.replace(PILL_TEMPLATE_TOKEN2, sanitized);
           const tempContainer = document.createElement("div");
           tempContainer.innerHTML = applied;
+          removeDefaultHighlights(tempContainer);
           const fragment = document.createDocumentFragment();
           Array.from(tempContainer.childNodes).forEach((child) => fragment.appendChild(child));
           node.replaceWith(fragment);
         } else if (node.innerHTML && replacementValue !== placeholder) {
           const tempContainer = document.createElement("div");
           tempContainer.innerHTML = node.innerHTML;
+          removeDefaultHighlights(tempContainer);
           const fragment = document.createDocumentFragment();
           Array.from(tempContainer.childNodes).forEach((child) => fragment.appendChild(child));
           node.replaceWith(fragment);
@@ -24515,4 +24560,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-DnYNGRUi.js.map
+//# sourceMappingURL=main-ClmHW8Jb.js.map
