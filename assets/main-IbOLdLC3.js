@@ -21680,34 +21680,6 @@ ${bodyResult.html}
 ${bodyResult.text}`;
         break;
     }
-    const buildClipboardHtml = (fragmentHtml = "") => {
-      const docType = "<!DOCTYPE html>";
-      const htmlOpen = '<html><head><meta charset="UTF-8"></head><body>';
-      const htmlClose = "</body></html>";
-      const startFragment = "<!--StartFragment-->";
-      const endFragment = "<!--EndFragment-->";
-      const fullHtml = `${docType}${htmlOpen}${startFragment}${fragmentHtml}${endFragment}${htmlClose}`;
-      const prefix = "Version:1.0\r\n";
-      const placeholder = "0000000000";
-      let header = `StartHTML:${placeholder}\r
-EndHTML:${placeholder}\r
-StartFragment:${placeholder}\r
-EndFragment:${placeholder}\r
-`;
-      let content = prefix + header + fullHtml;
-      const startHTML = content.indexOf(docType);
-      const endHTML = startHTML + fullHtml.length;
-      const startFragmentIndex = content.indexOf(startFragment) + startFragment.length;
-      const endFragmentIndex = content.indexOf(endFragment);
-      const pad = (num) => String(num).padStart(10, "0");
-      header = `StartHTML:${pad(startHTML)}\r
-EndHTML:${pad(endHTML)}\r
-StartFragment:${pad(startFragmentIndex)}\r
-EndFragment:${pad(endFragmentIndex)}\r
-`;
-      content = prefix + header + fullHtml;
-      return content;
-    };
     try {
       const tempContainer = document.createElement("div");
       tempContainer.style.position = "fixed";
@@ -21793,31 +21765,40 @@ EndFragment:${pad(endFragmentIndex)}\r
       };
       captureAllStyles(tempContainer);
       const fragmentHtml = tempContainer.innerHTML;
-      const range = document.createRange();
-      range.selectNodeContents(tempContainer);
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
-      let success = false;
-      try {
-        success = document.execCommand("copy");
-      } catch (e) {
-        console.log("execCommand failed:", e);
-      }
-      selection.removeAllRanges();
-      document.body.removeChild(tempContainer);
-      if (!success) {
-        if (navigator.clipboard && navigator.clipboard.write) {
-          const styledHtml = fragmentHtml;
-          const clipboardHtml = buildClipboardHtml(styledHtml);
+      const htmlDocument = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head><body>${fragmentHtml}</body></html>`;
+      let clipboardWritten = false;
+      if (navigator.clipboard && navigator.clipboard.write) {
+        try {
           const clipboardItem = new ClipboardItem({
-            "text/html": new Blob([clipboardHtml], { type: "text/html" }),
+            "text/html": new Blob([htmlDocument], { type: "text/html" }),
             "text/plain": new Blob([textContent], { type: "text/plain" })
           });
           await navigator.clipboard.write([clipboardItem]);
-        } else {
+          clipboardWritten = true;
+        } catch (apiError) {
+          console.warn("navigator.clipboard.write failed, will try execCommand fallback:", apiError);
+        }
+      }
+      if (!clipboardWritten) {
+        const range = document.createRange();
+        range.selectNodeContents(tempContainer);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        let success = false;
+        try {
+          success = document.execCommand("copy");
+        } catch (e) {
+          console.log("execCommand failed:", e);
+        }
+        selection.removeAllRanges();
+        document.body.removeChild(tempContainer);
+        if (!success) {
           throw new Error("All copy methods failed");
         }
+      } else {
+        document.body.removeChild(tempContainer);
       }
       setCopySuccess(type);
       setTimeout(() => setCopySuccess(null), 2e3);
@@ -24690,4 +24671,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-C-tqcrvJ.js.map
+//# sourceMappingURL=main-IbOLdLC3.js.map
