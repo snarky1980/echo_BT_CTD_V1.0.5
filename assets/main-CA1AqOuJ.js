@@ -21645,36 +21645,12 @@ function App() {
         textContent = resolvedSubject;
         break;
       case "body":
-        htmlContent = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0; padding: 0;">
-<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000000; background-color: #ffffff;">
-${bodyResult.html}
-</div>
-</body>
-</html>`;
+        htmlContent = bodyResult.html;
         textContent = bodyResult.text;
         break;
       case "all":
       default:
-        htmlContent = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0; padding: 0;">
-<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000000; background-color: #ffffff;">
-<div><strong>Subject:</strong> ${subjectResult.html || toSimpleHtml(resolvedSubject)}</div>
-<br>
-<div>${bodyResult.html}</div>
-</div>
-</body>
-</html>`;
+        htmlContent = `<div><strong>Subject:</strong> ${subjectResult.html || toSimpleHtml(resolvedSubject)}</div><br><div>${bodyResult.html}</div>`;
         textContent = `${resolvedSubject}
 
 ${bodyResult.text}`;
@@ -21687,118 +21663,80 @@ ${bodyResult.text}`;
       tempContainer.style.top = "0";
       tempContainer.style.width = "800px";
       tempContainer.style.height = "auto";
-      tempContainer.style.opacity = "0.01";
+      tempContainer.style.visibility = "hidden";
       tempContainer.style.overflow = "hidden";
       tempContainer.style.pointerEvents = "none";
-      tempContainer.style.whiteSpace = "pre-wrap";
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlContent, "text/html");
-      const contentToAdd = doc.body.cloneNode(true);
-      tempContainer.appendChild(contentToAdd);
+      tempContainer.innerHTML = htmlContent;
       document.body.appendChild(tempContainer);
       tempContainer.offsetHeight;
-      const captureAllStyles = (element) => {
-        element.querySelectorAll("*").forEach((el) => {
-          if (el.nodeType !== Node.ELEMENT_NODE) return;
+      const captureStyles = (element) => {
+        const allElements = element.querySelectorAll("*");
+        allElements.forEach((el) => {
+          if (!el || el.nodeType !== Node.ELEMENT_NODE) return;
           if (["BR", "HR"].includes(el.tagName)) return;
           const computed = window.getComputedStyle(el);
-          const styleMap = /* @__PURE__ */ new Map();
-          const existingStyle = el.getAttribute("style");
-          if (existingStyle) {
-            existingStyle.split(";").forEach((part) => {
-              if (!part) return;
-              const [propRaw, valueRaw] = part.split(":");
-              if (!valueRaw) return;
-              const prop = propRaw.trim().toLowerCase();
-              const value = valueRaw.trim();
-              if (!prop || !value) return;
-              styleMap.set(prop, value);
-            });
-          }
-          const setStyle = (prop, value) => {
-            if (!value) return;
-            styleMap.set(prop, value);
-          };
+          const styles = [];
           const bgColor = computed.backgroundColor;
           if (bgColor && bgColor !== "rgba(0, 0, 0, 0)" && bgColor !== "transparent") {
-            setStyle("background-color", bgColor);
+            styles.push(`background-color: ${bgColor}`);
           }
           const color = computed.color;
           if (color) {
-            setStyle("color", color);
+            styles.push(`color: ${color}`);
           }
           const fontWeight = computed.fontWeight;
-          const numericWeight = parseInt(fontWeight, 10);
-          if (fontWeight === "bold" || !Number.isNaN(numericWeight) && numericWeight >= 600) {
-            setStyle("font-weight", fontWeight === "bold" ? "bold" : String(numericWeight));
+          if (fontWeight === "bold" || parseInt(fontWeight) >= 600) {
+            styles.push(`font-weight: bold`);
           }
           if (computed.fontStyle === "italic") {
-            setStyle("font-style", "italic");
+            styles.push(`font-style: italic`);
           }
           const textDeco = computed.textDecoration;
           if (textDeco && !textDeco.includes("none")) {
-            setStyle("text-decoration", textDeco);
+            styles.push(`text-decoration: ${textDeco}`);
           }
           const fontFamily = computed.fontFamily;
           if (fontFamily) {
-            setStyle("font-family", fontFamily);
+            styles.push(`font-family: ${fontFamily}`);
           }
           const fontSize = computed.fontSize;
           if (fontSize) {
-            setStyle("font-size", fontSize);
+            styles.push(`font-size: ${fontSize}`);
           }
-          const lineHeight = computed.lineHeight;
-          if (lineHeight && lineHeight !== "normal") {
-            setStyle("line-height", lineHeight);
-          }
-          const textAlign = computed.textAlign;
-          if (textAlign && textAlign !== "start") {
-            setStyle("text-align", textAlign);
-          }
-          if (styleMap.size > 0) {
-            const styleString = Array.from(styleMap.entries()).map(([prop, value]) => `${prop}: ${value}`).join("; ");
-            el.setAttribute("style", styleString.endsWith(";") ? styleString : `${styleString};`);
-          } else {
-            el.removeAttribute("style");
+          if (styles.length > 0) {
+            el.setAttribute("style", styles.join("; ") + ";");
           }
         });
       };
-      captureAllStyles(tempContainer);
-      const fragmentHtml = tempContainer.innerHTML;
-      const htmlDocument = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"></head><body>${fragmentHtml}</body></html>`;
-      let clipboardWritten = false;
+      captureStyles(tempContainer);
+      const styledHtml = tempContainer.innerHTML;
+      let success = false;
       if (navigator.clipboard && navigator.clipboard.write) {
         try {
+          const htmlBlob = new Blob([styledHtml], { type: "text/html" });
+          const textBlob = new Blob([textContent], { type: "text/plain" });
           const clipboardItem = new ClipboardItem({
-            "text/html": new Blob([htmlDocument], { type: "text/html" }),
-            "text/plain": new Blob([textContent], { type: "text/plain" })
+            "text/html": htmlBlob,
+            "text/plain": textBlob
           });
           await navigator.clipboard.write([clipboardItem]);
-          clipboardWritten = true;
-        } catch (apiError) {
-          console.warn("navigator.clipboard.write failed, will try execCommand fallback:", apiError);
+          success = true;
+        } catch (err) {
+          console.warn("Clipboard API write failed:", err);
         }
       }
-      if (!clipboardWritten) {
+      if (!success) {
         const range = document.createRange();
         range.selectNodeContents(tempContainer);
         const selection = window.getSelection();
         selection.removeAllRanges();
         selection.addRange(range);
-        let success = false;
-        try {
-          success = document.execCommand("copy");
-        } catch (e) {
-          console.log("execCommand failed:", e);
-        }
+        success = document.execCommand("copy");
         selection.removeAllRanges();
-        document.body.removeChild(tempContainer);
-        if (!success) {
-          throw new Error("All copy methods failed");
-        }
-      } else {
-        document.body.removeChild(tempContainer);
+      }
+      document.body.removeChild(tempContainer);
+      if (!success) {
+        throw new Error("All copy methods failed");
       }
       setCopySuccess(type);
       setTimeout(() => setCopySuccess(null), 2e3);
@@ -24671,4 +24609,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-hD8e5KND.js.map
+//# sourceMappingURL=main-CA1AqOuJ.js.map
