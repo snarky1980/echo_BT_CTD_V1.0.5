@@ -18485,10 +18485,10 @@ var SelectItemText = reactExports.forwardRef(
         return (_a = contentContext.itemTextRefCallback) == null ? void 0 : _a.call(contentContext, node, itemContext.value, itemContext.disabled);
       }
     );
-    const textContent = itemTextNode == null ? void 0 : itemTextNode.textContent;
+    const textContent2 = itemTextNode == null ? void 0 : itemTextNode.textContent;
     const nativeOption = reactExports.useMemo(
-      () => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: itemContext.value, disabled: itemContext.disabled, children: textContent }, itemContext.value),
-      [itemContext.disabled, itemContext.value, textContent]
+      () => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: itemContext.value, disabled: itemContext.disabled, children: textContent2 }, itemContext.value),
+      [itemContext.disabled, itemContext.value, textContent2]
     );
     const { onNativeOptionAdd, onNativeOptionRemove } = nativeOptionsContext;
     useLayoutEffect2(() => {
@@ -21627,94 +21627,81 @@ function App() {
   }, [selectedTemplate, templateLanguage, finalSubject, finalBody, syncFromText]);
   const copyToClipboard = async (type = "all") => {
     var _a2, _b, _c, _d;
-    let htmlContent = "";
-    let textContent = "";
-    const toSimpleHtml = (plain = "") => String(plain ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/\r\n|\r/g, "\n").replace(/\n/g, "<br>");
-    const latestVariables = variablesRef.current || variables2 || {};
-    const subjectSource = finalSubjectRef.current ?? finalSubject;
-    const bodySource = finalBodyRef.current ?? finalBody;
-    const resolvedSubject = replaceVariablesWithValues(subjectSource, latestVariables);
-    const resolvedBodyText = replaceVariablesWithValues(bodySource, latestVariables);
-    const bodyHtmlSource = ((_b = (_a2 = bodyEditorRef.current) == null ? void 0 : _a2.getHtml) == null ? void 0 : _b.call(_a2)) ?? bodySource;
-    const subjectHtmlSource = ((_d = (_c = subjectEditorRef.current) == null ? void 0 : _c.getHtml) == null ? void 0 : _d.call(_c)) ?? toSimpleHtml(resolvedSubject);
-    const bodyResult = replaceVariablesInHTML(bodyHtmlSource, latestVariables, resolvedBodyText);
-    const subjectResult = replaceVariablesInHTML(subjectHtmlSource, latestVariables, resolvedSubject);
-    switch (type) {
-      case "subject":
-        htmlContent = subjectResult.html || toSimpleHtml(resolvedSubject);
-        textContent = resolvedSubject;
-        break;
-      case "body":
-        htmlContent = bodyResult.html;
-        textContent = bodyResult.text;
-        break;
-      case "all":
-      default:
-        htmlContent = `<div><strong>Subject:</strong> ${subjectResult.html || toSimpleHtml(resolvedSubject)}</div><br><div>${bodyResult.html}</div>`;
-        textContent = `${resolvedSubject}
-
-${bodyResult.text}`;
-        break;
-    }
     try {
-      const tempContainer = document.createElement("div");
-      tempContainer.style.position = "fixed";
-      tempContainer.style.left = "-9999px";
-      tempContainer.style.top = "0";
-      tempContainer.style.width = "800px";
-      tempContainer.style.height = "auto";
-      tempContainer.style.visibility = "hidden";
-      tempContainer.style.overflow = "hidden";
-      tempContainer.style.pointerEvents = "none";
-      tempContainer.innerHTML = htmlContent;
-      document.body.appendChild(tempContainer);
-      tempContainer.offsetHeight;
-      const captureStyles = (element) => {
-        const allElements = element.querySelectorAll("*");
-        allElements.forEach((el) => {
-          if (!el || el.nodeType !== Node.ELEMENT_NODE) return;
-          if (["BR", "HR"].includes(el.tagName)) return;
-          const computed = window.getComputedStyle(el);
-          const styles = [];
-          const bgColor = computed.backgroundColor;
-          if (bgColor && bgColor !== "rgba(0, 0, 0, 0)" && bgColor !== "transparent") {
-            styles.push(`background-color: ${bgColor}`);
+      const cloneWithInlineStyles = (element) => {
+        const clone = element.cloneNode(false);
+        const computed = window.getComputedStyle(element);
+        const styles = [];
+        const bgColor = computed.backgroundColor;
+        if (bgColor && bgColor !== "rgba(0, 0, 0, 0)" && bgColor !== "transparent") {
+          styles.push(`background-color: ${bgColor}`);
+        }
+        const color = computed.color;
+        if (color && color !== "rgb(0, 0, 0)") {
+          styles.push(`color: ${color}`);
+        }
+        const fontWeight = computed.fontWeight;
+        if (fontWeight === "bold" || parseInt(fontWeight) >= 600) {
+          styles.push(`font-weight: bold`);
+        }
+        if (computed.fontStyle === "italic") {
+          styles.push(`font-style: italic`);
+        }
+        const textDeco = computed.textDecoration;
+        if (textDeco && textDeco !== "none" && !textDeco.includes("none solid")) {
+          styles.push(`text-decoration: ${computed.textDecorationLine}`);
+        }
+        const fontFamily = computed.fontFamily;
+        if (fontFamily && fontFamily !== "Arial") {
+          styles.push(`font-family: ${fontFamily}`);
+        }
+        const fontSize = computed.fontSize;
+        if (fontSize && fontSize !== "16px") {
+          styles.push(`font-size: ${fontSize}`);
+        }
+        if (styles.length > 0) {
+          clone.setAttribute("style", styles.join("; "));
+        }
+        for (const child of element.childNodes) {
+          if (child.nodeType === Node.ELEMENT_NODE) {
+            clone.appendChild(cloneWithInlineStyles(child));
+          } else if (child.nodeType === Node.TEXT_NODE) {
+            clone.appendChild(child.cloneNode(false));
           }
-          const color = computed.color;
-          if (color) {
-            styles.push(`color: ${color}`);
-          }
-          const fontWeight = computed.fontWeight;
-          if (fontWeight === "bold" || parseInt(fontWeight) >= 600) {
-            styles.push(`font-weight: bold`);
-          }
-          if (computed.fontStyle === "italic") {
-            styles.push(`font-style: italic`);
-          }
-          const textDeco = computed.textDecoration;
-          if (textDeco && !textDeco.includes("none")) {
-            styles.push(`text-decoration: ${textDeco}`);
-          }
-          const fontFamily = computed.fontFamily;
-          if (fontFamily) {
-            styles.push(`font-family: ${fontFamily}`);
-          }
-          const fontSize = computed.fontSize;
-          if (fontSize) {
-            styles.push(`font-size: ${fontSize}`);
-          }
-          if (styles.length > 0) {
-            el.setAttribute("style", styles.join("; ") + ";");
-          }
-        });
+        }
+        return clone;
       };
-      captureStyles(tempContainer);
-      const styledHtml = tempContainer.innerHTML;
+      let sourceElement, textContent2;
+      const subjectEditor = (_b = (_a2 = subjectEditorRef.current) == null ? void 0 : _a2.editorRef) == null ? void 0 : _b.current;
+      const bodyEditor = (_d = (_c = bodyEditorRef.current) == null ? void 0 : _c.editorRef) == null ? void 0 : _d.current;
+      if (type === "subject" && subjectEditor) {
+        sourceElement = cloneWithInlineStyles(subjectEditor);
+        textContent2 = subjectEditor.textContent || "";
+      } else if (type === "body" && bodyEditor) {
+        sourceElement = cloneWithInlineStyles(bodyEditor);
+        textContent2 = bodyEditor.textContent || "";
+      } else if (type === "all" && subjectEditor && bodyEditor) {
+        const wrapper = document.createElement("div");
+        const subjectLabel = document.createElement("strong");
+        subjectLabel.textContent = "Subject: ";
+        wrapper.appendChild(subjectLabel);
+        wrapper.appendChild(cloneWithInlineStyles(subjectEditor));
+        wrapper.appendChild(document.createElement("br"));
+        wrapper.appendChild(document.createElement("br"));
+        wrapper.appendChild(cloneWithInlineStyles(bodyEditor));
+        sourceElement = wrapper;
+        textContent2 = `Subject: ${subjectEditor.textContent || ""}
+
+${bodyEditor.textContent || ""}`;
+      } else {
+        throw new Error("Editor references not available");
+      }
+      const htmlContent = sourceElement.innerHTML;
       let success = false;
       if (navigator.clipboard && navigator.clipboard.write) {
         try {
-          const htmlBlob = new Blob([styledHtml], { type: "text/html" });
-          const textBlob = new Blob([textContent], { type: "text/plain" });
+          const htmlBlob = new Blob([htmlContent], { type: "text/html" });
+          const textBlob = new Blob([textContent2], { type: "text/plain" });
           const clipboardItem = new ClipboardItem({
             "text/html": htmlBlob,
             "text/plain": textBlob
@@ -21722,19 +21709,24 @@ ${bodyResult.text}`;
           await navigator.clipboard.write([clipboardItem]);
           success = true;
         } catch (err) {
-          console.warn("Clipboard API write failed:", err);
+          console.warn("Clipboard API failed:", err);
         }
       }
       if (!success) {
+        const tempDiv = document.createElement("div");
+        tempDiv.style.position = "fixed";
+        tempDiv.style.left = "-9999px";
+        tempDiv.innerHTML = htmlContent;
+        document.body.appendChild(tempDiv);
         const range = document.createRange();
-        range.selectNodeContents(tempContainer);
+        range.selectNodeContents(tempDiv);
         const selection = window.getSelection();
         selection.removeAllRanges();
         selection.addRange(range);
         success = document.execCommand("copy");
         selection.removeAllRanges();
+        document.body.removeChild(tempDiv);
       }
-      document.body.removeChild(tempContainer);
       if (!success) {
         throw new Error("All copy methods failed");
       }
@@ -24609,4 +24601,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-CA1AqOuJ.js.map
+//# sourceMappingURL=main-BBuzze3N.js.map
