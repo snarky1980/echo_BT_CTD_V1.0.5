@@ -2927,28 +2927,31 @@ function App() {
           : `<<${varName}>>`
 
         const placeholder = `<<${varName}>>`
-        const pillClone = node.cloneNode(false)
-
-        const injectAndReplace = (htmlString) => {
-          setCloneContent(pillClone, htmlString)
-          stripPillMetadata(pillClone)
-          node.replaceWith(pillClone)
-        }
-
+        
         // If the pill carries a formatting template, apply it so bold/italic/highlights are preserved
         const template = node.getAttribute('data-template') || node.dataset?.template
         if (template && replacementValue !== placeholder) {
           const sanitized = convertValueToHtml(replacementValue)
           const applied = template.replace(PILL_TEMPLATE_TOKEN, sanitized)
-          injectAndReplace(applied)
+          // Create a temporary container to parse the HTML
+          const tempContainer = document.createElement('div')
+          tempContainer.innerHTML = applied
+          // Replace the pill node with the content (unwrapped)
+          const fragment = document.createDocumentFragment()
+          Array.from(tempContainer.childNodes).forEach(child => fragment.appendChild(child))
+          node.replaceWith(fragment)
         } else if (node.innerHTML && replacementValue !== placeholder) {
-          // Fallback: reuse the pill's visible HTML (already contains inline formatting)
-          injectAndReplace(node.innerHTML)
+          // Fallback: extract the inner content of the pill (without the wrapper)
+          const tempContainer = document.createElement('div')
+          tempContainer.innerHTML = node.innerHTML
+          const fragment = document.createDocumentFragment()
+          Array.from(tempContainer.childNodes).forEach(child => fragment.appendChild(child))
+          node.replaceWith(fragment)
         } else {
           // Default text-only replacement for empty/placeholder variables
-          pillClone.textContent = replacementValue
-          stripPillMetadata(pillClone)
-          node.replaceWith(pillClone)
+          // Just replace with a plain text node (no wrapper element)
+          const textNode = document.createTextNode(replacementValue)
+          node.replaceWith(textNode)
         }
       })
     })
