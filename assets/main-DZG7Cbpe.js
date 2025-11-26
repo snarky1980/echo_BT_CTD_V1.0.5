@@ -18485,10 +18485,10 @@ var SelectItemText = reactExports.forwardRef(
         return (_a = contentContext.itemTextRefCallback) == null ? void 0 : _a.call(contentContext, node, itemContext.value, itemContext.disabled);
       }
     );
-    const textContent2 = itemTextNode == null ? void 0 : itemTextNode.textContent;
+    const textContent = itemTextNode == null ? void 0 : itemTextNode.textContent;
     const nativeOption = reactExports.useMemo(
-      () => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: itemContext.value, disabled: itemContext.disabled, children: textContent2 }, itemContext.value),
-      [itemContext.disabled, itemContext.value, textContent2]
+      () => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: itemContext.value, disabled: itemContext.disabled, children: textContent }, itemContext.value),
+      [itemContext.disabled, itemContext.value, textContent]
     );
     const { onNativeOptionAdd, onNativeOptionRemove } = nativeOptionsContext;
     useLayoutEffect2(() => {
@@ -18926,7 +18926,7 @@ const Toast = ({ toast, onRemove }) => {
     }
   );
 };
-const __vite_import_meta_env__ = { "BASE_URL": "/", "DEV": false, "MODE": "production", "PROD": true, "SSR": false };
+const __vite_import_meta_env__ = { "BASE_URL": "/", "DEV": false, "MODE": "production", "PROD": true, "SSR": false, "VITE_SUPPORT_EMAIL": "echo-support@jskennedy.net" };
 const NAVY_TEXT = "#1c2f4a";
 const CATEGORY_BADGE_STYLES = {
   quotes_and_approvals: { bg: "#ede9fe", border: "#c4b5fd", text: NAVY_TEXT },
@@ -19230,8 +19230,8 @@ const extractVariablesFromPills = (htmlText = "") => {
   const pills = tempDiv.querySelectorAll("[data-var]");
   pills.forEach((pill) => {
     const varName = pill.getAttribute("data-var");
-    const varValue = pill.getAttribute("data-value") || pill.textContent || "";
-    if (varName) {
+    const varValue = pill.getAttribute("data-display") || pill.textContent || "";
+    if (varName && varValue) {
       variables2[varName] = varValue;
     }
   });
@@ -19830,7 +19830,7 @@ function App() {
   });
   const supportEmail = reactExports.useMemo(() => {
     try {
-      const envEmail = __vite_import_meta_env__ == null ? void 0 : __vite_import_meta_env__.VITE_SUPPORT_EMAIL;
+      const envEmail = "echo-support@jskennedy.net";
       if (typeof envEmail === "string") {
         const trimmed = envEmail.trim();
         if (trimmed) return trimmed;
@@ -21287,7 +21287,11 @@ function App() {
     const wrapper = document.createElement("div");
     wrapper.innerHTML = ensureHtmlString(htmlText);
     const normalizeColor2 = (value = "") => String(value || "").replace(/\s+/g, "").toLowerCase();
-    const defaultPillBackgrounds2 = /* @__PURE__ */ new Set([
+    const expandShortHex = (value = "") => {
+      if (!value || value[0] !== "#" || value.length !== 4) return value;
+      return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`;
+    };
+    const defaultPillBackgrounds2 = new Set([
       "rgb(245,243,232)",
       // #f5f3e8 filled background
       "rgba(245,243,232,1)",
@@ -21296,9 +21300,41 @@ function App() {
       "rgba(254,249,195,1)",
       "rgb(219,234,254)",
       // #dbeafe focus background
-      "rgba(219,234,254,1)"
-    ]);
-    const isDefaultPillBackground2 = (color = "") => defaultPillBackgrounds2.has(normalizeColor2(color));
+      "rgba(219,234,254,1)",
+      "#f5f3e8",
+      "#fef9c3",
+      "#dbeafe"
+    ].map((entry) => normalizeColor2(expandShortHex(entry))));
+    const containsDefaultPillColor = (value = "") => {
+      if (!value) return false;
+      const stripped = value.replace(/!important$/i, "").trim();
+      if (!stripped) return false;
+      const normalized = normalizeColor2(stripped);
+      if (defaultPillBackgrounds2.has(normalized)) return true;
+      const rgbMatch = normalized.match(/rgba?\([^)]*\)/);
+      if (rgbMatch && defaultPillBackgrounds2.has(normalizeColor2(rgbMatch[0]))) {
+        return true;
+      }
+      const hexMatch = normalized.match(/#[0-9a-f]{3,8}/);
+      if (hexMatch) {
+        const expandedHex = normalizeColor2(expandShortHex(hexMatch[0]));
+        if (defaultPillBackgrounds2.has(expandedHex)) {
+          return true;
+        }
+      }
+      return false;
+    };
+    const shouldStripBackgroundRule = (value = "") => {
+      if (!value) return true;
+      const stripped = value.replace(/!important$/i, "").trim();
+      if (!stripped) return true;
+      const lowered = stripped.toLowerCase();
+      if (lowered === "transparent" || lowered === "none" || lowered === "initial" || lowered === "inherit") {
+        return true;
+      }
+      return containsDefaultPillColor(stripped);
+    };
+    const isDefaultPillBackground2 = (color = "") => containsDefaultPillColor(color);
     const pillStyleStripList = /* @__PURE__ */ new Set([
       "border",
       "border-top",
@@ -21311,7 +21347,23 @@ function App() {
       "padding-top",
       "padding-right",
       "padding-bottom",
-      "padding-left"
+      "padding-left",
+      "outline",
+      "outline-color",
+      "outline-style",
+      "outline-width",
+      "transition",
+      "transition-property",
+      "transition-duration",
+      "transition-timing-function",
+      "transform",
+      "animation",
+      "animation-name",
+      "animation-duration",
+      "animation-timing-function",
+      "animation-iteration-count",
+      "animation-direction",
+      "animation-fill-mode"
     ]);
     const sanitizeStyleString = (style = "") => {
       const parts = style.split(";");
@@ -21326,8 +21378,19 @@ function App() {
         if (pillStyleStripList.has(prop)) return;
         if (prop.startsWith("border-") && pillStyleStripList.has("border")) return;
         if (prop.startsWith("padding-") && pillStyleStripList.has("padding")) return;
-        if (prop === "background-color" && isDefaultPillBackground2(value)) return;
-        if (prop === "background" && isDefaultPillBackground2(value)) return;
+        if (prop.startsWith("background")) {
+          if (shouldStripBackgroundRule(value)) return;
+        }
+        if (prop === "display") {
+          const normalizedDisplay = value.toLowerCase();
+          if (normalizedDisplay === "inline-block" || normalizedDisplay === "inline-flex" || normalizedDisplay === "flex") return;
+        }
+        if ((prop === "align-items" || prop === "justify-content") && value.toLowerCase() === "center") return;
+        if (prop === "gap" && /^(4px|6px|0.25rem|0.375rem)$/.test(value.toLowerCase())) return;
+        if (prop === "margin" || prop === "margin-left" || prop === "margin-right") {
+          const normalizedMargin = value.replace(/\s+/g, "").toLowerCase();
+          if (normalizedMargin === "0" || normalizedMargin === "0px" || normalizedMargin === "02px") return;
+        }
         keep.push(`${prop}: ${value}`);
       });
       return keep.join("; ");
@@ -21441,38 +21504,166 @@ function App() {
       }
       return raw.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/\r\n|\r/g, "\n").replace(/\n/g, "<br>");
     };
-    const PILL_TEMPLATE_TOKEN2 = "__RT_PILL_VALUE__";
-    Object.entries(values || {}).forEach(([varName, value]) => {
-      const nodes = wrapper.querySelectorAll(`[data-var="${cssEscape(varName)}"]`);
-      nodes.forEach((node) => {
-        var _a2;
-        const replacementValue = value !== void 0 && value !== null && String(value).length ? String(value) : `<<${varName}>>`;
-        const placeholder = `<<${varName}>>`;
-        const template = node.getAttribute("data-template") || ((_a2 = node.dataset) == null ? void 0 : _a2.template);
-        if (template && replacementValue !== placeholder) {
-          const sanitized = convertValueToHtml(replacementValue);
-          const applied = template.replace(PILL_TEMPLATE_TOKEN2, sanitized);
-          const tempContainer = document.createElement("div");
-          tempContainer.innerHTML = applied;
-          removeDefaultHighlights(tempContainer);
-          const fragment = document.createDocumentFragment();
-          Array.from(tempContainer.childNodes).forEach((child) => fragment.appendChild(child));
-          node.replaceWith(fragment);
-        } else if (node.innerHTML && replacementValue !== placeholder) {
-          const tempContainer = document.createElement("div");
-          tempContainer.innerHTML = node.innerHTML;
-          removeDefaultHighlights(tempContainer);
-          const fragment = document.createDocumentFragment();
-          Array.from(tempContainer.childNodes).forEach((child) => fragment.appendChild(child));
-          node.replaceWith(fragment);
-        } else {
-          const textNode = document.createTextNode(replacementValue);
-          node.replaceWith(textNode);
+    const stagingHost = document.createElement("div");
+    stagingHost.style.position = "fixed";
+    stagingHost.style.pointerEvents = "none";
+    stagingHost.style.opacity = "0";
+    stagingHost.style.left = "-9999px";
+    stagingHost.style.top = "-9999px";
+    stagingHost.style.width = "0";
+    stagingHost.style.height = "0";
+    stagingHost.appendChild(wrapper);
+    document.body.appendChild(stagingHost);
+    try {
+      const pillStyles = /* @__PURE__ */ new Map();
+      wrapper.querySelectorAll("[data-var]").forEach((pill) => {
+        const varName = pill.getAttribute("data-var");
+        const computedStyle = window.getComputedStyle(pill);
+        const styles = {};
+        const propsToCapture = ["color", "backgroundColor", "fontFamily", "fontSize", "fontWeight", "fontStyle", "textDecoration"];
+        propsToCapture.forEach((prop) => {
+          const value = computedStyle[prop];
+          if (value && value !== "normal" && value !== "none") {
+            if (prop === "backgroundColor") {
+              const normalized = value.replace(/\s/g, "").toLowerCase();
+              if (isDefaultPillBackground2(normalized)) return;
+              if (normalized === "rgb(255,255,255)" || normalized === "rgba(255,255,255,1)") return;
+              if (normalized === "rgba(0,0,0,0)" || normalized === "transparent") return;
+            }
+            if (prop === "color") {
+              const normalized = value.replace(/\s/g, "").toLowerCase();
+              if (normalized === "rgb(0,0,0)" || normalized === "rgb(17,17,17)" || normalized === "rgb(255,255,255)") return;
+            }
+            styles[prop] = value;
+          }
+        });
+        if (Object.keys(styles).length > 0) {
+          pillStyles.set(varName, styles);
+        }
+        if (debug) {
+          console.log("📋 Captured styles for", varName, ":", styles);
         }
       });
-    });
-    makeOutlookFriendly(wrapper);
-    removeDefaultHighlights(wrapper);
+      const PILL_TEMPLATE_TOKEN2 = "__RT_PILL_VALUE__";
+      Object.entries(values || {}).forEach(([varName, value]) => {
+        const nodes = wrapper.querySelectorAll(`[data-var="${cssEscape(varName)}"]`);
+        nodes.forEach((node) => {
+          var _a2;
+          const replacementValue = value !== void 0 && value !== null && String(value).length ? String(value) : `<<${varName}>>`;
+          const placeholder = `<<${varName}>>`;
+          const template = node.getAttribute("data-template") || ((_a2 = node.dataset) == null ? void 0 : _a2.template);
+          if (template && replacementValue !== placeholder && template !== "__RT_PILL_VALUE__") {
+            const sanitized = convertValueToHtml(replacementValue);
+            const applied = template.replace(PILL_TEMPLATE_TOKEN2, sanitized);
+            node.innerHTML = applied;
+          } else if (replacementValue !== placeholder) {
+            const capturedStyles = pillStyles.get(varName);
+            if (capturedStyles && Object.keys(capturedStyles).length > 0) {
+              const styleStr = Object.entries(capturedStyles).map(([prop, val]) => {
+                const kebab = prop.replace(/([A-Z])/g, "-$1").toLowerCase();
+                return `${kebab}: ${val}`;
+              }).join("; ");
+              node.innerHTML = `<span style="${styleStr}">${convertValueToHtml(replacementValue)}</span>`;
+            } else {
+              node.textContent = replacementValue;
+            }
+          }
+        });
+      });
+      wrapper.querySelectorAll("[data-var] *").forEach((el) => {
+        if (el.nodeType === Node.ELEMENT_NODE) {
+          Array.from(el.attributes).forEach((attr) => {
+            if (attr.name.startsWith("data-") || attr.name === "class" || attr.name === "contenteditable" || attr.name === "spellcheck") {
+              el.removeAttribute(attr.name);
+            }
+          });
+          if (el.hasAttribute("style")) {
+            const style = el.getAttribute("style");
+            if (style) {
+              const cleaned = style.split(";").filter((rule) => {
+                const [propRaw, ...rest] = rule.split(":");
+                const prop = propRaw == null ? void 0 : propRaw.trim().toLowerCase();
+                if (!prop) return false;
+                if (prop.includes("border")) return false;
+                if (prop.includes("padding")) return false;
+                if (prop.includes("margin")) return false;
+                if (prop.includes("box-shadow")) return false;
+                if (prop.includes("display")) return false;
+                if (prop.includes("transition")) return false;
+                if (prop.includes("transform")) return false;
+                if (prop.includes("outline")) return false;
+                if (prop.includes("box-sizing")) return false;
+                if (prop.includes("cursor")) return false;
+                if (prop.includes("user-select")) return false;
+                if (prop.includes("line-height")) return false;
+                if (prop.includes("letter-spacing")) return false;
+                if (prop.startsWith("background")) {
+                  const valuePart = rest.join(":").trim();
+                  if (shouldStripBackgroundRule(valuePart)) return false;
+                }
+                return true;
+              }).join(";");
+              if (cleaned) {
+                el.setAttribute("style", cleaned);
+              } else {
+                el.removeAttribute("style");
+              }
+            }
+          }
+        }
+      });
+      wrapper.querySelectorAll("span[data-var]").forEach((pill) => {
+        const fragment = document.createDocumentFragment();
+        Array.from(pill.childNodes).forEach((child) => {
+          fragment.appendChild(child.cloneNode(true));
+        });
+        pill.replaceWith(fragment);
+      });
+      wrapper.querySelectorAll("*").forEach((el) => {
+        if (el.nodeType === Node.ELEMENT_NODE) {
+          Array.from(el.attributes).forEach((attr) => {
+            if (attr.name.startsWith("data-") || attr.name === "class" || attr.name === "contenteditable" || attr.name === "spellcheck" || attr.name === "role" || attr.name === "aria-label") {
+              el.removeAttribute(attr.name);
+            }
+          });
+        }
+      });
+      removeDefaultHighlights(wrapper);
+      wrapper.querySelectorAll('span[style*="background-color"]').forEach((el) => {
+        const style = el.getAttribute("style") || "";
+        const bgMatch = style.match(/background-color\s*:\s*([^;]+)/i);
+        if (bgMatch) {
+          const bgColor = bgMatch[1].trim();
+          const otherStyles = style.split(";").filter((rule) => {
+            var _a2;
+            const prop = (_a2 = rule.split(":")[0]) == null ? void 0 : _a2.trim().toLowerCase();
+            return prop && !prop.includes("background");
+          }).join(";");
+          const finalStyle = `background-color: ${bgColor}; ${otherStyles}; border: none !important; box-shadow: none !important; outline: none !important; padding: 0 !important; margin: 0 !important;`;
+          el.setAttribute("style", finalStyle);
+        }
+      });
+      wrapper.querySelectorAll("span[style]").forEach((el) => {
+        const style = el.getAttribute("style") || "";
+        if (!style.includes("border: none")) {
+          el.setAttribute("style", `${style}; border: none !important; padding: 0 !important; margin: 0 !important;`);
+        }
+      });
+      if (debug) {
+        console.log("🎯 AFTER cleanup, wrapper HTML:", wrapper.innerHTML.substring(0, 500));
+        const remainingStyled = wrapper.querySelectorAll("[style]");
+        console.log("📊 Remaining styled elements:", remainingStyled.length);
+        remainingStyled.forEach((el, idx) => {
+          if (idx < 5) {
+            console.log(`  [${idx}] ${el.tagName}:`, el.getAttribute("style"));
+          }
+        });
+      }
+    } finally {
+      if (stagingHost.parentNode) {
+        stagingHost.parentNode.removeChild(stagingHost);
+      }
+    }
     const htmlResult = wrapper.innerHTML;
     if (fallbackPlainText) {
       return { html: htmlResult, text: fallbackPlainText };
@@ -21626,332 +21817,123 @@ function App() {
     return () => clearTimeout(debounce);
   }, [selectedTemplate, templateLanguage, finalSubject, finalBody, syncFromText]);
   const copyToClipboard = async (type = "all") => {
-    var _a2, _b, _c, _d, _e, _f, _g, _h;
-    try {
-      let htmlContent = "";
-      let textContent2 = "";
-      const subjectElement = (_b = (_a2 = subjectEditorRef.current) == null ? void 0 : _a2.getEditorElement) == null ? void 0 : _b.call(_a2);
-      const bodyElement = (_d = (_c = bodyEditorRef.current) == null ? void 0 : _c.getEditorElement) == null ? void 0 : _d.call(_c);
-      const subjectText = ((_f = (_e = subjectEditorRef.current) == null ? void 0 : _e.getPlainText) == null ? void 0 : _f.call(_e)) || "";
-      const bodyText = ((_h = (_g = bodyEditorRef.current) == null ? void 0 : _g.getPlainText) == null ? void 0 : _h.call(_g)) || "";
-      console.log("Copy type:", type);
-      const convertToInlineStyles = (sourceElement) => {
-        if (!sourceElement) return "";
-        const rgbToHex2 = (rgb) => {
-          const match = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-          if (!match) return rgb;
-          const r2 = parseInt(match[1]).toString(16).padStart(2, "0");
-          const g = parseInt(match[2]).toString(16).padStart(2, "0");
-          const b = parseInt(match[3]).toString(16).padStart(2, "0");
-          return `#${r2}${g}${b}`;
-        };
-        const styleMap = /* @__PURE__ */ new Map();
-        const captureStyles = (el) => {
-          if (el.nodeType !== Node.ELEMENT_NODE) return;
-          const computed = window.getComputedStyle(el);
-          const inlineStyles = [];
-          const bgColor = computed.backgroundColor;
-          if (bgColor && bgColor !== "rgba(0, 0, 0, 0)" && bgColor !== "transparent") {
-            inlineStyles.push(`background-color: ${rgbToHex2(bgColor)}`);
-          }
-          const color = computed.color;
-          if (color && color !== "rgb(0, 0, 0)") {
-            inlineStyles.push(`color: ${rgbToHex2(color)}`);
-          }
-          const fontWeight = computed.fontWeight;
-          if (parseInt(fontWeight) >= 600) {
-            inlineStyles.push(`font-weight: bold`);
-          }
-          if (computed.fontStyle === "italic") {
-            inlineStyles.push(`font-style: italic`);
-          }
-          const textDecoration = computed.textDecorationLine;
-          if (textDecoration && textDecoration !== "none") {
-            inlineStyles.push(`text-decoration: ${textDecoration}`);
-          }
-          const fontFamily = computed.fontFamily.split(",")[0].replace(/['"]/g, "");
-          if (fontFamily && fontFamily !== "Arial") {
-            inlineStyles.push(`font-family: ${fontFamily}`);
-          }
-          const fontSize = computed.fontSize;
-          if (fontSize) {
-            inlineStyles.push(`font-size: ${fontSize}`);
-          }
-          if (inlineStyles.length > 0) {
-            styleMap.set(el, inlineStyles.join("; "));
-          }
-          Array.from(el.children).forEach(captureStyles);
-        };
-        captureStyles(sourceElement);
-        const cloneWithStyles = (original) => {
-          if (original.nodeType === Node.TEXT_NODE) {
-            return original.cloneNode(false);
-          }
-          if (original.nodeType !== Node.ELEMENT_NODE) {
-            return original.cloneNode(false);
-          }
-          const clone = original.cloneNode(false);
-          const styles = styleMap.get(original);
-          if (styles) {
-            clone.setAttribute("style", styles);
-          }
-          clone.removeAttribute("class");
-          clone.removeAttribute("contenteditable");
-          clone.removeAttribute("data-var");
-          clone.removeAttribute("data-value");
-          clone.removeAttribute("data-display");
-          clone.removeAttribute("spellcheck");
-          Array.from(original.childNodes).forEach((child) => {
-            clone.appendChild(cloneWithStyles(child));
-          });
-          return clone;
-        };
-        const styledClone = cloneWithStyles(sourceElement);
-        return styledClone.innerHTML;
-      };
-      if (type === "subject") {
-        htmlContent = convertToInlineStyles(subjectElement);
-        textContent2 = subjectText;
-      } else if (type === "body") {
-        htmlContent = convertToInlineStyles(bodyElement);
-        textContent2 = bodyText;
-      } else if (type === "all") {
-        const subjectHtml = convertToInlineStyles(subjectElement);
-        const bodyHtml = convertToInlineStyles(bodyElement);
-        htmlContent = `<div><strong>Subject:</strong> ${subjectHtml}</div><br/>${bodyHtml}`;
-        textContent2 = `Subject: ${subjectText}
-
-${bodyText}`;
-      }
-      console.log("HTML to copy (first 500 chars):", htmlContent.substring(0, 500));
-      const fullHtml = `<!DOCTYPE html>
+    var _a2, _b, _c, _d;
+    console.log("📋 copyToClipboard called with type:", type);
+    let htmlContent = "";
+    let textContent = "";
+    const toSimpleHtml = (plain = "") => String(plain ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/\r\n|\r/g, "\n").replace(/\n/g, "<br>");
+    const latestVariables = variablesRef.current || variables2 || {};
+    const subjectSource = finalSubjectRef.current ?? finalSubject;
+    const bodySource = finalBodyRef.current ?? finalBody;
+    const resolvedSubject = replaceVariablesWithValues(subjectSource, latestVariables);
+    const resolvedBodyText = replaceVariablesWithValues(bodySource, latestVariables);
+    const bodyHtmlSource = ((_b = (_a2 = bodyEditorRef.current) == null ? void 0 : _a2.getHtml) == null ? void 0 : _b.call(_a2)) ?? bodySource;
+    const subjectHtmlSource = ((_d = (_c = subjectEditorRef.current) == null ? void 0 : _c.getHtml) == null ? void 0 : _d.call(_c)) ?? toSimpleHtml(resolvedSubject);
+    const bodyResult = replaceVariablesInHTML(bodyHtmlSource, latestVariables, resolvedBodyText);
+    const subjectResult = replaceVariablesInHTML(subjectHtmlSource, latestVariables, resolvedSubject);
+    switch (type) {
+      case "subject":
+        htmlContent = subjectResult.html || toSimpleHtml(resolvedSubject);
+        textContent = resolvedSubject;
+        break;
+      case "body":
+        htmlContent = `<!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body>
-${htmlContent}
+<body style="margin: 0; padding: 0;">
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000000; background-color: #ffffff;">
+${bodyResult.html}
+</div>
 </body>
 </html>`;
-      let success = false;
-      const buildCFHtml = (html) => {
-        const enc = new TextEncoder();
-        const doc = `<!DOCTYPE html>
+        textContent = bodyResult.text;
+        break;
+      case "all":
+      default:
+        htmlContent = `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"></head>
-<body><!--StartFragment-->${html}<!--EndFragment--></body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0;">
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000000; background-color: #ffffff;">
+<div>${subjectResult.html || toSimpleHtml(resolvedSubject)}</div>
+<br>
+<div>${bodyResult.html}</div>
+</div>
+</body>
 </html>`;
-        const startHtmlIndex = doc.indexOf("<html>");
-        const startFragmentIndex = doc.indexOf("<!--StartFragment-->") + "<!--StartFragment-->".length;
-        const endFragmentIndex = doc.indexOf("<!--EndFragment-->");
-        const headerPlaceholder = `Version:1.0\r
-StartHTML:0000000000\r
-EndHTML:0000000000\r
-StartFragment:0000000000\r
-EndFragment:0000000000\r
-`;
-        const headerPlaceholderBytes = enc.encode(headerPlaceholder).length;
-        const startHtmlBytes = headerPlaceholderBytes + enc.encode(doc.substring(0, startHtmlIndex)).length;
-        const startFragmentBytes = headerPlaceholderBytes + enc.encode(doc.substring(0, startFragmentIndex)).length;
-        const endFragmentBytes = headerPlaceholderBytes + enc.encode(doc.substring(0, endFragmentIndex)).length;
-        const endHtmlBytes = headerPlaceholderBytes + enc.encode(doc).length;
-        const pad = (n) => String(n).padStart(10, "0");
-        const header = `Version:1.0\r
-StartHTML:${pad(startHtmlBytes)}\r
-EndHTML:${pad(endHtmlBytes)}\r
-StartFragment:${pad(startFragmentBytes)}\r
-EndFragment:${pad(endFragmentBytes)}\r
-`;
-        return header + doc;
-      };
-      const rgbToHex = (rgb) => {
-        if (!rgb) return rgb;
-        const m = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-        if (!m) return rgb;
-        const r2 = parseInt(m[1]).toString(16).padStart(2, "0");
-        const g = parseInt(m[2]).toString(16).padStart(2, "0");
-        const b = parseInt(m[3]).toString(16).padStart(2, "0");
-        return `#${r2}${g}${b}`;
-      };
-      const hexToRgb = (hex) => {
-        if (!hex) return null;
-        const clean = hex.replace("#", "");
-        if (clean.length !== 6) return null;
-        return {
-          r: parseInt(clean.slice(0, 2), 16),
-          g: parseInt(clean.slice(2, 4), 16),
-          b: parseInt(clean.slice(4, 6), 16)
-        };
-      };
-      const htmlToRtf = (html) => {
-        if (!html) return "";
-        const temp = document.createElement("div");
-        temp.innerHTML = html;
-        const colors = /* @__PURE__ */ new Map();
-        const fonts = /* @__PURE__ */ new Map([["Arial", 0]]);
-        let colorIndex = 1;
-        let fontIndex = 1;
-        const collect = (el) => {
-          if (el.nodeType !== Node.ELEMENT_NODE) return;
-          const style = el.getAttribute("style") || "";
-          const mColor = style.match(/(?:background-color|color):\s*([^;]+)/i);
-          if (mColor) {
-            const hex = mColor[1].trim().startsWith("#") ? mColor[1].trim() : rgbToHex(mColor[1].trim());
-            if (hex && !colors.has(hex)) {
-              colors.set(hex, colorIndex++);
-            }
-          }
-          const mFont = style.match(/font-family:\s*([^;]+)/i);
-          if (mFont) {
-            const f = mFont[1].split(",")[0].replace(/['\"]/g, "").trim();
-            if (f && !fonts.has(f)) {
-              fonts.set(f, fontIndex++);
-            }
-          }
-          Array.from(el.children).forEach(collect);
-        };
-        Array.from(temp.children).forEach(collect);
-        const fontEntries = Array.from(fonts.entries()).sort((a, b) => a[1] - b[1]);
-        const colorEntries = Array.from(colors.entries()).sort((a, b) => a[1] - b[1]);
-        const fonttbl = `{\\fonttbl${fontEntries.map(([name, idx]) => `{\\f${idx}\\fnil ${name};}`).join("")}}`;
-        const colortbl = `{\\colortbl;${colorEntries.map(([hex]) => {
-          const rgb = hexToRgb(hex) || { r: 0, g: 0, b: 0 };
-          return `\\red${rgb.r}\\green${rgb.g}\\blue${rgb.b}`;
-        }).join(";")};}`;
-        const escapeRtf = (s) => String(s).replace(/\\/g, "\\\\").replace(/{/g, "\\{").replace(/}/g, "\\}").replace(/\n/g, "\\par ");
-        const nodeToRtf = (node, state = {}) => {
-          if (node.nodeType === Node.TEXT_NODE) {
-            return escapeRtf(node.nodeValue);
-          }
-          if (node.nodeType !== Node.ELEMENT_NODE) return "";
-          const tag = node.tagName;
-          let parts = "";
-          const style = node.getAttribute("style") || "";
-          const tokens = [];
-          const mBg = style.match(/background-color:\s*([^;]+)/i);
-          if (mBg) {
-            const hex = mBg[1].trim().startsWith("#") ? mBg[1].trim() : rgbToHex(mBg[1].trim());
-            const idx = colors.get(hex);
-            if (idx) tokens.push(`\\highlight${idx}`);
-          }
-          const mColor = style.match(/color:\s*([^;]+)/i);
-          if (mColor) {
-            const hex = mColor[1].trim().startsWith("#") ? mColor[1].trim() : rgbToHex(mColor[1].trim());
-            const idx = colors.get(hex);
-            if (idx) tokens.push(`\\cf${idx}`);
-          }
-          const mFont = style.match(/font-family:\s*([^;]+)/i);
-          if (mFont) {
-            const f = mFont[1].split(",")[0].replace(/['\"]/g, "").trim();
-            const fi = fonts.get(f);
-            if (fi !== void 0) tokens.push(`\\f${fi}`);
-          }
-          const mSize = style.match(/font-size:\s*([^;]+)/i);
-          if (mSize) {
-            const sizePx = parseFloat(mSize[1]);
-            if (!isNaN(sizePx)) {
-              const halfPoints = Math.round(sizePx * 1.5);
-              tokens.push(`\\fs${halfPoints}`);
-            }
-          }
-          if (node.tagName === "STRONG" || node.tagName === "B") tokens.push("\\b");
-          if (node.tagName === "EM" || node.tagName === "I") tokens.push("\\i");
-          if (node.tagName === "U") tokens.push("\\ul");
-          if (tokens.length) parts += tokens.join("") + " ";
-          Array.from(node.childNodes).forEach((child) => {
-            if (child.nodeType === Node.ELEMENT_NODE && child.tagName === "BR") {
-              parts += "\\line ";
-            } else {
-              parts += nodeToRtf(child, state);
-            }
-          });
-          const close = [];
-          if (node.tagName === "STRONG" || node.tagName === "B") close.push("\\b0");
-          if (node.tagName === "EM" || node.tagName === "I") close.push("\\i0");
-          if (node.tagName === "U") close.push("\\ul0");
-          if (close.length) parts += close.join("") + " ";
-          if (mColor) parts += "\\cf0 ";
-          if (mBg) parts += "\\highlight0 ";
-          if (mFont) parts += "\\f0 ";
-          if (mSize) parts += "\\fs24 ";
-          if (tag === "DIV" || tag === "P") parts += "\\par ";
-          return parts;
-        };
-        let body = "";
-        Array.from(temp.childNodes).forEach((child) => {
-          body += nodeToRtf(child);
-        });
-        const rtf = `{\\rtf1\\ansi\\deff0 ${fonttbl} ${colortbl} ${body}}`;
-        return rtf;
-      };
-      if (navigator.clipboard && navigator.clipboard.write) {
-        try {
-          const cfHtml = buildCFHtml(htmlContent);
-          const htmlBlob = new Blob([cfHtml], { type: "text/html" });
-          const rtfContent = htmlToRtf(htmlContent);
-          const rtfBlob = new Blob([rtfContent], { type: "text/rtf" });
-          const textBlob = new Blob([textContent2], { type: "text/plain" });
-          console.log("RTF length:", rtfContent.length);
-          console.log("RTF sample (first 200 chars):", rtfContent.substring(0, 200));
-          const clipboardItem = new ClipboardItem({
-            "text/html": htmlBlob,
-            "text/rtf": rtfBlob,
-            "text/plain": textBlob
-          });
-          await navigator.clipboard.write([clipboardItem]);
-          success = true;
-          console.log("Clipboard API copy succeeded");
-        } catch (err) {
-          console.warn("Clipboard API failed:", err);
-        }
-      }
+        textContent = `${resolvedSubject}
+
+${bodyResult.text}`;
+        break;
+    }
+    try {
+      const tempContainer = document.createElement("div");
+      tempContainer.style.position = "fixed";
+      tempContainer.style.left = "-9999px";
+      tempContainer.style.top = "-9999px";
+      tempContainer.style.width = "1px";
+      tempContainer.style.height = "1px";
+      tempContainer.style.opacity = "0";
+      tempContainer.style.overflow = "hidden";
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlContent, "text/html");
+      const contentToAdd = doc.body.cloneNode(true);
+      tempContainer.appendChild(contentToAdd);
+      document.body.appendChild(tempContainer);
+      const range = document.createRange();
+      range.selectNodeContents(tempContainer);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      const success = document.execCommand("copy");
+      selection.removeAllRanges();
+      document.body.removeChild(tempContainer);
       if (!success) {
-        const tempDiv = document.createElement("div");
-        tempDiv.contentEditable = "true";
-        tempDiv.style.position = "fixed";
-        tempDiv.style.left = "-9999px";
-        tempDiv.style.top = "0";
-        tempDiv.innerHTML = htmlContent;
-        document.body.appendChild(tempDiv);
-        const range = document.createRange();
-        range.selectNodeContents(tempDiv);
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(range);
-        try {
-          success = document.execCommand("copy");
-          console.log("execCommand copy result:", success);
-        } catch (err) {
-          console.error("execCommand failed:", err);
-        }
-        selection.removeAllRanges();
-        document.body.removeChild(tempDiv);
-      }
-      if (!success) {
-        throw new Error("All copy methods failed");
+        throw new Error("execCommand copy failed");
       }
       setCopySuccess(type);
       setTimeout(() => setCopySuccess(null), 2e3);
     } catch (error) {
       console.error("Copy error:", error);
       try {
-        if (navigator.clipboard) {
-          await navigator.clipboard.writeText(textContent);
+        if (navigator.clipboard && navigator.clipboard.write) {
+          const clipboardItem = new ClipboardItem({
+            "text/html": new Blob([htmlContent], { type: "text/html" }),
+            "text/plain": new Blob([textContent], { type: "text/plain" })
+          });
+          await navigator.clipboard.write([clipboardItem]);
+          setCopySuccess(type);
+          setTimeout(() => setCopySuccess(null), 2e3);
         } else {
-          const textArea = document.createElement("textarea");
-          textArea.value = textContent;
-          textArea.style.position = "fixed";
-          textArea.style.left = "-999999px";
-          document.body.appendChild(textArea);
-          textArea.select();
-          document.execCommand("copy");
-          textArea.remove();
+          throw new Error("Modern clipboard API unavailable");
         }
-        setCopySuccess(type);
-        setTimeout(() => setCopySuccess(null), 2e3);
-      } catch (finalError) {
-        console.error("All copy methods failed:", finalError);
-        alert("Copy failed. Please select the text manually and use Ctrl+C.");
+      } catch (fallbackError) {
+        console.error("Fallback copy error:", fallbackError);
+        try {
+          if (navigator.clipboard) {
+            await navigator.clipboard.writeText(textContent);
+          } else {
+            const textArea = document.createElement("textarea");
+            textArea.value = textContent;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand("copy");
+            textArea.remove();
+          }
+          setCopySuccess(type);
+          setTimeout(() => setCopySuccess(null), 2e3);
+        } catch (finalError) {
+          console.error("All copy methods failed:", finalError);
+          alert("Copy failed. Please select the text manually and use Ctrl+C.");
+        }
       }
     }
   };
@@ -24801,4 +24783,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-sJRlAxRW.js.map
+//# sourceMappingURL=main-DZG7Cbpe.js.map
