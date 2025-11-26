@@ -4191,8 +4191,9 @@ ${cleanBodyHtml}
   }
 
   // Compose helper: plain-text mailto fallback
-  const composePlainTextEmailDraft = () => {
-    // Use mailto so we at least open a draft with plain text content
+  const composePlainTextEmailDraft = useCallback(() => {
+    console.log('📧 composePlainTextEmailDraft called')
+
     const latestVariables = variablesRef.current || variables || {}
     const subjectSource = finalSubjectRef.current ?? finalSubject
     const bodySource = finalBodyRef.current ?? finalBody
@@ -4201,19 +4202,144 @@ ${cleanBodyHtml}
     const resolvedBodyText = replaceVariablesWithValues(bodySource, latestVariables) || ''
     const bodyResult = replaceVariablesInHTML(bodyHtmlSource, latestVariables, resolvedBodyText)
 
-    const plainBody = (bodyResult.text || resolvedBodyText || '')
-      .replace(/\r?\n/g, '\r\n')
+    const plainBody = (bodyResult.text || resolvedBodyText || '').replace(/\r?\n/g, '\r\n')
 
     const subjectParam = encodeURIComponent(resolvedSubject)
     const bodyParam = encodeURIComponent(plainBody)
-    const mailtoUrl = `mailto:?subject=${subjectParam}&body=${bodyParam}`
+    const MAX_MAILTO_LENGTH = 1800
 
-    try {
-      window.location.href = mailtoUrl
-    } catch (error) {
-      window.open(mailtoUrl, '_self')
+    let mailtoBodyParam = bodyParam
+    let mailtoUrl = `mailto:?subject=${subjectParam}&body=${mailtoBodyParam}`
+    const originalMailtoLength = mailtoUrl.length
+    let clipboardNotice = null
+
+    if (originalMailtoLength > MAX_MAILTO_LENGTH) {
+      clipboardNotice = interfaceLanguage === 'fr'
+        ? 'Le corps complet a été copié dans le presse-papiers. Ouvrez Outlook puis faites simplement Coller.'
+        : 'The full email body was copied to your clipboard. Open Outlook and just paste it in.'
+
+      const legacyCopyToClipboard = () => {
+        let tempTextArea
+        try {
+          tempTextArea = document.createElement('textarea')
+          tempTextArea.value = plainBody
+          tempTextArea.style.position = 'fixed'
+          tempTextArea.style.opacity = '0'
+          document.body.appendChild(tempTextArea)
+          tempTextArea.focus({ preventScroll: true })
+          tempTextArea.select()
+          const success = document.execCommand('copy')
+          console.log('📧 Copied plain body via execCommand', success)
+          if (!success) {
+            const warnMsg = interfaceLanguage === 'fr'
+              ? "Impossible de copier automatiquement le texte. Utilisez le brouillon .eml si nécessaire."
+              : 'Could not copy the text automatically. Use the .eml draft if needed.'
+            toast.error(warnMsg, 6000)
+          }
+        } catch (error) {
+          console.warn('📧 execCommand copy failed:', error)
+        } finally {
+          if (tempTextArea && tempTextArea.parentNode) {
+            tempTextArea.parentNode.removeChild(tempTextArea)
+          }
+        }
+      }
+
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(plainBody)
+          .then(() => console.log('📧 Copied plain body via navigator.clipboard'))
+          .catch(err => {
+            console.warn('📧 navigator.clipboard copy failed:', err)
+            legacyCopyToClipboard()
+          })
+      } else {
+        legacyCopyToClipboard()
+      }
+
+      const shortBodyMessage = interfaceLanguage === 'fr'
+        ? 'Le texte complet est copié dans votre presse-papiers. Collez-le dans Outlook.'
+        : 'The full text is copied to your clipboard. Paste it in Outlook.'
+      mailtoBodyParam = encodeURIComponent(shortBodyMessage)
+      mailtoUrl = `mailto:?subject=${subjectParam}&body=${mailtoBodyParam}`
+
+      console.log('📧 mailto length exceeded limit, using clipboard assist. Original length:', originalMailtoLength)
+
+      if (clipboardNotice) {
+        toast.info(clipboardNotice, 5000)
+      }
     }
-  }
+
+    const downloadEmlFallback = (reason) => {
+      console.log('📧 Fallback .eml download:', reason)
+      const emlContent = `Subject: ${resolvedSubject}\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n${plainBody}`
+      const blob = new Blob([emlContent], { type: 'message/rfc822' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `email-draft-${Date.now()}.eml`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      const msg = interfaceLanguage === 'fr'
+        ? 'Aucun client courriel détecté. Brouillon .eml téléchargé.'
+        : 'No email client detected. Downloaded a .eml draft instead.'
+      toast.info(msg)
+    }
+
+    const tryMailLaunch = () => {
+      // Special handling for Windows legacy Outlook / Edge
+      if (typeof navigator !== 'undefined' && typeof navigator.msLaunchUri === 'function') {
+        navigator.msLaunchUri(mailtoUrl, () => console.log('📧 msLaunchUri success'), (err) => {
+          console.warn('📧 msLaunchUri failed:', err)
+          downloadEmlFallback('msLaunchUri fail')
+        })
+        return true
+      }
+
+      const launchers = [
+        () => { window.location.assign(mailtoUrl); },
+        () => { window.location.href = mailtoUrl; },
+        () => { window.open(mailtoUrl, '_self'); },
+        () => { window.open(mailtoUrl, '_blank', 'noopener'); }
+      ]
+
+      for (const launch of launchers) {
+        try {
+          launch()
+          return true
+        } catch (error) {
+          console.warn('📧 mailto launch attempt failed:', error)
+        }
+      }
+      return false
+    }
+
+    const launched = tryMailLaunch()
+
+    if (!launched) {
+      downloadEmlFallback('all launch attempts failed')
+      return
+    }
+
+    if (!clipboardNotice) {
+      const msg = interfaceLanguage === 'fr'
+        ? 'Ouverture de votre client courriel...'
+        : 'Opening your email client...'
+      toast.info(msg, 2500)
+    }
+
+    setTimeout(() => {
+      if (!document.hidden && document.hasFocus()) {
+        const confirmMsg = interfaceLanguage === 'fr'
+          ? "Outlook ne semble pas s'ouvrir. Voulez-vous télécharger un brouillon .eml à la place?"
+          : 'Outlook did not appear to open. Would you like to download an .eml draft instead?'
+        if (window.confirm(confirmMsg)) {
+          downloadEmlFallback('user requested fallback after failed launch perception')
+        }
+      }
+    }, 1800)
+  }, [interfaceLanguage, toast, variables, finalSubject, finalBody, replaceVariablesWithValues, replaceVariablesInHTML])
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(to bottom right, #f8fafc, #fefbe8, #e0f2fe)' }}>
