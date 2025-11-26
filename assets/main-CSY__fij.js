@@ -22449,6 +22449,15 @@ ${plainBody}`;
       }
       const launchers = [
         () => {
+          const a = document.createElement("a");
+          a.href = mailtoUrl;
+          a.style.display = "none";
+          document.body.appendChild(a);
+          console.log("📧 anchor click attempt, href length:", a.href.length);
+          a.click();
+          document.body.removeChild(a);
+        },
+        () => {
           window.location.assign(mailtoUrl);
         },
         () => {
@@ -22458,12 +22467,13 @@ ${plainBody}`;
           window.open(mailtoUrl, "_self");
         },
         () => {
-          window.open(mailtoUrl, "_blank", "noopener");
+          window.open(mailtoUrl, "_blank", "noopener,noreferrer");
         }
       ];
-      for (const launch of launchers) {
+      for (const [idx, launch] of launchers.entries()) {
         try {
           launch();
+          console.log("📧 mailto launch attempt succeeded (index):", idx);
           return true;
         } catch (error) {
           console.warn("📧 mailto launch attempt failed:", error);
@@ -22471,6 +22481,8 @@ ${plainBody}`;
       }
       return false;
     };
+    console.log("📧 mailtoUrl:", mailtoUrl);
+    console.log("📧 mailto length check: original", originalMailtoLength, "final", mailtoUrl.length);
     const launched = tryMailLaunch();
     if (!launched) {
       downloadEmlFallback("all launch attempts failed");
@@ -22484,7 +22496,10 @@ ${plainBody}`;
       if (!document.hidden && document.hasFocus()) {
         const confirmMsg = interfaceLanguage === "fr" ? "Outlook ne semble pas s'ouvrir. Voulez-vous télécharger un brouillon .eml à la place?" : "Outlook did not appear to open. Would you like to download an .eml draft instead?";
         if (window.confirm(confirmMsg)) {
+          console.log("📧 user confirmed fallback; downloading .eml");
           downloadEmlFallback("user requested fallback after failed launch perception");
+        } else {
+          console.log("📧 user chose not to download fallback; leaving as-is");
         }
       }
     }, 1800);
@@ -24892,4 +24907,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-D6vVzMo5.js.map
+//# sourceMappingURL=main-CSY__fij.js.map
