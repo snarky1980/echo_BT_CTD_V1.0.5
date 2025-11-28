@@ -21286,186 +21286,40 @@ function App() {
     };
     const wrapper = document.createElement("div");
     wrapper.innerHTML = ensureHtmlString(htmlText);
-    const normalizeColor2 = (value = "") => String(value || "").replace(/\s+/g, "").toLowerCase();
-    const expandShortHex = (value = "") => {
-      if (!value || value[0] !== "#" || value.length !== 4) return value;
-      return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`;
-    };
-    const defaultPillBackgrounds2 = new Set([
-      "rgb(245,243,232)",
-      // #f5f3e8 filled background
-      "rgba(245,243,232,1)",
-      "rgb(254,249,195)",
-      // #fef9c3 empty background
-      "rgba(254,249,195,1)",
-      "rgb(219,234,254)",
-      // #dbeafe focus background
-      "rgba(219,234,254,1)",
-      "#f5f3e8",
-      "#fef9c3",
-      "#dbeafe"
-    ].map((entry) => normalizeColor2(expandShortHex(entry))));
-    const containsDefaultPillColor = (value = "") => {
-      if (!value) return false;
-      const stripped = value.replace(/!important$/i, "").trim();
-      if (!stripped) return false;
-      const normalized = normalizeColor2(stripped);
-      if (defaultPillBackgrounds2.has(normalized)) return true;
-      const rgbMatch = normalized.match(/rgba?\([^)]*\)/);
-      if (rgbMatch && defaultPillBackgrounds2.has(normalizeColor2(rgbMatch[0]))) {
-        return true;
-      }
-      const hexMatch = normalized.match(/#[0-9a-f]{3,8}/);
-      if (hexMatch) {
-        const expandedHex = normalizeColor2(expandShortHex(hexMatch[0]));
-        if (defaultPillBackgrounds2.has(expandedHex)) {
-          return true;
-        }
-      }
-      return false;
-    };
-    const shouldStripBackgroundRule = (value = "") => {
-      if (!value) return true;
-      const stripped = value.replace(/!important$/i, "").trim();
-      if (!stripped) return true;
-      const lowered = stripped.toLowerCase();
-      if (lowered === "transparent" || lowered === "none" || lowered === "initial" || lowered === "inherit") {
-        return true;
-      }
-      return containsDefaultPillColor(stripped);
-    };
-    const isDefaultPillBackground2 = (color = "") => containsDefaultPillColor(color);
-    const pillStyleStripList = /* @__PURE__ */ new Set([
-      "border",
-      "border-top",
-      "border-right",
-      "border-bottom",
-      "border-left",
-      "border-radius",
-      "box-shadow",
-      "padding",
-      "padding-top",
-      "padding-right",
-      "padding-bottom",
-      "padding-left",
-      "outline",
-      "outline-color",
-      "outline-style",
-      "outline-width",
-      "transition",
-      "transition-property",
-      "transition-duration",
-      "transition-timing-function",
-      "transform",
-      "animation",
-      "animation-name",
-      "animation-duration",
-      "animation-timing-function",
-      "animation-iteration-count",
-      "animation-direction",
-      "animation-fill-mode"
-    ]);
-    const sanitizeStyleString = (style = "") => {
-      const parts = style.split(";");
-      const keep = [];
-      parts.forEach((part) => {
-        if (!part) return;
-        const [propRaw, valueRaw] = part.split(":");
-        if (!valueRaw) return;
-        const prop = propRaw.trim().toLowerCase();
-        const value = valueRaw.trim();
-        if (!prop || !value) return;
-        if (pillStyleStripList.has(prop)) return;
-        if (prop.startsWith("border-") && pillStyleStripList.has("border")) return;
-        if (prop.startsWith("padding-") && pillStyleStripList.has("padding")) return;
-        if (prop.startsWith("background")) {
-          if (shouldStripBackgroundRule(value)) return;
-        }
-        if (prop === "display") {
-          const normalizedDisplay = value.toLowerCase();
-          if (normalizedDisplay === "inline-block" || normalizedDisplay === "inline-flex" || normalizedDisplay === "flex") return;
-        }
-        if ((prop === "align-items" || prop === "justify-content") && value.toLowerCase() === "center") return;
-        if (prop === "gap" && /^(4px|6px|0.25rem|0.375rem)$/.test(value.toLowerCase())) return;
-        if (prop === "margin" || prop === "margin-left" || prop === "margin-right") {
-          const normalizedMargin = value.replace(/\s+/g, "").toLowerCase();
-          if (normalizedMargin === "0" || normalizedMargin === "0px" || normalizedMargin === "02px") return;
-        }
-        keep.push(`${prop}: ${value}`);
-      });
-      return keep.join("; ");
-    };
-    const removeDefaultHighlights = (root) => {
-      if (!root || typeof root.querySelectorAll !== "function") return;
-      root.querySelectorAll("*").forEach((el) => {
-        var _a2;
-        const style = ((_a2 = el.getAttribute) == null ? void 0 : _a2.call(el, "style")) || "";
-        if (!style) return;
-        const sanitized = sanitizeStyleString(style);
-        if (sanitized) {
-          el.setAttribute("style", sanitized.endsWith(";") ? sanitized : `${sanitized};`);
-        } else {
-          el.removeAttribute("style");
-        }
-      });
-    };
     const makeOutlookFriendly = (element) => {
       element.querySelectorAll("*").forEach((el) => {
         if (["BR", "HR"].includes(el.tagName)) return;
         const computedStyle = window.getComputedStyle(el);
         let newStyle = "";
-        const existingStyle = el.getAttribute("style") || "";
-        if (existingStyle) {
-          newStyle = existingStyle + "; ";
-        }
-        const fontFamily = computedStyle.fontFamily;
-        if (fontFamily && fontFamily !== "Arial, sans-serif" && !existingStyle.includes("font-family")) {
-          const cleanFamily = fontFamily.split(",")[0].replace(/['"]/g, "").trim();
-          newStyle += `font-family: ${cleanFamily}, Arial, sans-serif; `;
-        }
         const fontSize = computedStyle.fontSize;
-        if (fontSize && !existingStyle.includes("font-size")) {
+        if (fontSize && fontSize !== "16px" && fontSize !== "14px") {
           newStyle += `font-size: ${fontSize}; `;
         }
         const color = computedStyle.color;
-        color.replace(/\s/g, "");
-        if (color && !existingStyle.includes("color:")) {
+        const colorRgb = color.replace(/\s/g, "");
+        if (color && colorRgb !== "rgb(0,0,0)" && colorRgb !== "rgba(0,0,0,1)") {
           newStyle += `color: ${color}; `;
         }
         const bgColor = computedStyle.backgroundColor;
         const bgColorRgb = bgColor.replace(/\s/g, "");
-        if (bgColor && bgColorRgb !== "rgba(0,0,0,0)" && bgColorRgb !== "transparent" && !existingStyle.includes("background-color") && !isDefaultPillBackground2(bgColor)) {
+        if (bgColor && bgColorRgb !== "rgba(0,0,0,0)" && bgColorRgb !== "transparent" && bgColorRgb !== "rgb(255,255,255)" && bgColorRgb !== "rgba(255,255,255,1)") {
           newStyle += `background-color: ${bgColor}; `;
         }
         const fontWeight = computedStyle.fontWeight;
-        if ((fontWeight === "bold" || parseInt(fontWeight) >= 600) && !existingStyle.includes("font-weight")) {
-          newStyle += `font-weight: ${fontWeight === "bold" ? "bold" : fontWeight}; `;
+        if (fontWeight && (fontWeight === "bold" || parseInt(fontWeight) >= 700)) {
+          newStyle += `font-weight: bold; `;
         }
         const fontStyle = computedStyle.fontStyle;
-        if (fontStyle === "italic" && !existingStyle.includes("font-style")) {
+        if (fontStyle === "italic") {
           newStyle += `font-style: italic; `;
         }
         const textDecoration = computedStyle.textDecoration;
-        if (textDecoration && !textDecoration.includes("none") && !existingStyle.includes("text-decoration")) {
+        if (textDecoration && !textDecoration.includes("none")) {
           newStyle += `text-decoration: ${textDecoration}; `;
         }
-        const lineHeight = computedStyle.lineHeight;
-        if (lineHeight && lineHeight !== "normal" && !existingStyle.includes("line-height")) {
-          newStyle += `line-height: ${lineHeight}; `;
-        }
-        const textAlign = computedStyle.textAlign;
-        if (textAlign && textAlign !== "start" && textAlign !== "left" && !existingStyle.includes("text-align")) {
-          newStyle += `text-align: ${textAlign}; `;
-        }
-        if (["DIV", "P", "H1", "H2", "H3", "H4", "H5", "H6"].includes(el.tagName)) {
-          const marginTop = computedStyle.marginTop;
-          const marginBottom = computedStyle.marginBottom;
-          if (marginTop && marginTop !== "0px" && !existingStyle.includes("margin-top")) {
-            newStyle += `margin-top: ${marginTop}; `;
-          }
-          if (marginBottom && marginBottom !== "0px" && !existingStyle.includes("margin-bottom")) {
-            newStyle += `margin-bottom: ${marginBottom}; `;
-          }
+        const fontFamily = computedStyle.fontFamily;
+        if (fontFamily && fontFamily !== "Arial" && !fontFamily.startsWith("-apple-system")) {
+          newStyle += `font-family: ${fontFamily}; `;
         }
         if (newStyle) {
           el.setAttribute("style", newStyle.trim());
@@ -21473,15 +21327,11 @@ function App() {
       });
       element.querySelectorAll("ul, ol").forEach((list) => {
         const currentStyle = list.getAttribute("style") || "";
-        if (!currentStyle.includes("margin")) {
-          list.setAttribute("style", (currentStyle ? currentStyle + "; " : "") + "margin: 0; padding-left: 40px;");
-        }
+        list.setAttribute("style", currentStyle + " margin: 0; padding-left: 40px;");
       });
       element.querySelectorAll("li").forEach((li) => {
         const currentStyle = li.getAttribute("style") || "";
-        if (!currentStyle.includes("margin")) {
-          li.setAttribute("style", (currentStyle ? currentStyle + "; " : "") + "margin: 0; padding: 0;");
-        }
+        li.setAttribute("style", currentStyle + " margin: 0; padding: 0;");
       });
     };
     makeOutlookFriendly(wrapper);
@@ -21504,166 +21354,51 @@ function App() {
       }
       return raw.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/\r\n|\r/g, "\n").replace(/\n/g, "<br>");
     };
-    const stagingHost = document.createElement("div");
-    stagingHost.style.position = "fixed";
-    stagingHost.style.pointerEvents = "none";
-    stagingHost.style.opacity = "0";
-    stagingHost.style.left = "-9999px";
-    stagingHost.style.top = "-9999px";
-    stagingHost.style.width = "0";
-    stagingHost.style.height = "0";
-    stagingHost.appendChild(wrapper);
-    document.body.appendChild(stagingHost);
-    try {
-      const pillStyles = /* @__PURE__ */ new Map();
-      wrapper.querySelectorAll("[data-var]").forEach((pill) => {
-        const varName = pill.getAttribute("data-var");
-        const computedStyle = window.getComputedStyle(pill);
-        const styles = {};
-        const propsToCapture = ["color", "backgroundColor", "fontFamily", "fontSize", "fontWeight", "fontStyle", "textDecoration"];
-        propsToCapture.forEach((prop) => {
-          const value = computedStyle[prop];
-          if (value && value !== "normal" && value !== "none") {
-            if (prop === "backgroundColor") {
-              const normalized = value.replace(/\s/g, "").toLowerCase();
-              if (isDefaultPillBackground2(normalized)) return;
-              if (normalized === "rgb(255,255,255)" || normalized === "rgba(255,255,255,1)") return;
-              if (normalized === "rgba(0,0,0,0)" || normalized === "transparent") return;
-            }
-            if (prop === "color") {
-              const normalized = value.replace(/\s/g, "").toLowerCase();
-              if (normalized === "rgb(0,0,0)" || normalized === "rgb(17,17,17)" || normalized === "rgb(255,255,255)") return;
-            }
-            styles[prop] = value;
-          }
-        });
-        if (Object.keys(styles).length > 0) {
-          pillStyles.set(varName, styles);
-        }
-        if (debug) {
-          console.log("📋 Captured styles for", varName, ":", styles);
-        }
-      });
-      const PILL_TEMPLATE_TOKEN2 = "__RT_PILL_VALUE__";
-      Object.entries(values || {}).forEach(([varName, value]) => {
-        const nodes = wrapper.querySelectorAll(`[data-var="${cssEscape(varName)}"]`);
-        nodes.forEach((node) => {
-          var _a2;
-          const replacementValue = value !== void 0 && value !== null && String(value).length ? String(value) : `<<${varName}>>`;
-          const placeholder = `<<${varName}>>`;
-          const template = node.getAttribute("data-template") || ((_a2 = node.dataset) == null ? void 0 : _a2.template);
-          if (template && replacementValue !== placeholder && template !== "__RT_PILL_VALUE__") {
-            const sanitized = convertValueToHtml(replacementValue);
-            const applied = template.replace(PILL_TEMPLATE_TOKEN2, sanitized);
-            node.innerHTML = applied;
-          } else if (replacementValue !== placeholder) {
-            const capturedStyles = pillStyles.get(varName);
-            if (capturedStyles && Object.keys(capturedStyles).length > 0) {
-              const styleStr = Object.entries(capturedStyles).map(([prop, val]) => {
-                const kebab = prop.replace(/([A-Z])/g, "-$1").toLowerCase();
-                return `${kebab}: ${val}`;
-              }).join("; ");
-              node.innerHTML = `<span style="${styleStr}">${convertValueToHtml(replacementValue)}</span>`;
-            } else {
-              node.textContent = replacementValue;
-            }
-          }
-        });
-      });
-      wrapper.querySelectorAll("[data-var] *").forEach((el) => {
-        if (el.nodeType === Node.ELEMENT_NODE) {
-          Array.from(el.attributes).forEach((attr) => {
-            if (attr.name.startsWith("data-") || attr.name === "class" || attr.name === "contenteditable" || attr.name === "spellcheck") {
-              el.removeAttribute(attr.name);
-            }
-          });
-          if (el.hasAttribute("style")) {
-            const style = el.getAttribute("style");
-            if (style) {
-              const cleaned = style.split(";").filter((rule) => {
-                const [propRaw, ...rest] = rule.split(":");
-                const prop = propRaw == null ? void 0 : propRaw.trim().toLowerCase();
-                if (!prop) return false;
-                if (prop.includes("border")) return false;
-                if (prop.includes("padding")) return false;
-                if (prop.includes("margin")) return false;
-                if (prop.includes("box-shadow")) return false;
-                if (prop.includes("display")) return false;
-                if (prop.includes("transition")) return false;
-                if (prop.includes("transform")) return false;
-                if (prop.includes("outline")) return false;
-                if (prop.includes("box-sizing")) return false;
-                if (prop.includes("cursor")) return false;
-                if (prop.includes("user-select")) return false;
-                if (prop.includes("line-height")) return false;
-                if (prop.includes("letter-spacing")) return false;
-                if (prop.startsWith("background")) {
-                  const valuePart = rest.join(":").trim();
-                  if (shouldStripBackgroundRule(valuePart)) return false;
-                }
-                return true;
-              }).join(";");
-              if (cleaned) {
-                el.setAttribute("style", cleaned);
-              } else {
-                el.removeAttribute("style");
-              }
-            }
-          }
-        }
-      });
-      wrapper.querySelectorAll("span[data-var]").forEach((pill) => {
-        const fragment = document.createDocumentFragment();
-        Array.from(pill.childNodes).forEach((child) => {
-          fragment.appendChild(child.cloneNode(true));
-        });
-        pill.replaceWith(fragment);
-      });
-      wrapper.querySelectorAll("*").forEach((el) => {
-        if (el.nodeType === Node.ELEMENT_NODE) {
-          Array.from(el.attributes).forEach((attr) => {
-            if (attr.name.startsWith("data-") || attr.name === "class" || attr.name === "contenteditable" || attr.name === "spellcheck" || attr.name === "role" || attr.name === "aria-label") {
-              el.removeAttribute(attr.name);
-            }
-          });
-        }
-      });
-      removeDefaultHighlights(wrapper);
-      wrapper.querySelectorAll('span[style*="background-color"]').forEach((el) => {
-        const style = el.getAttribute("style") || "";
-        const bgMatch = style.match(/background-color\s*:\s*([^;]+)/i);
-        if (bgMatch) {
-          const bgColor = bgMatch[1].trim();
-          const otherStyles = style.split(";").filter((rule) => {
-            var _a2;
-            const prop = (_a2 = rule.split(":")[0]) == null ? void 0 : _a2.trim().toLowerCase();
-            return prop && !prop.includes("background");
-          }).join(";");
-          const finalStyle = `background-color: ${bgColor}; ${otherStyles}; border: none !important; box-shadow: none !important; outline: none !important; padding: 0 !important; margin: 0 !important;`;
-          el.setAttribute("style", finalStyle);
-        }
-      });
-      wrapper.querySelectorAll("span[style]").forEach((el) => {
-        const style = el.getAttribute("style") || "";
-        if (!style.includes("border: none")) {
-          el.setAttribute("style", `${style}; border: none !important; padding: 0 !important; margin: 0 !important;`);
-        }
-      });
-      if (debug) {
-        console.log("🎯 AFTER cleanup, wrapper HTML:", wrapper.innerHTML.substring(0, 500));
-        const remainingStyled = wrapper.querySelectorAll("[style]");
-        console.log("📊 Remaining styled elements:", remainingStyled.length);
-        remainingStyled.forEach((el, idx) => {
-          if (idx < 5) {
-            console.log(`  [${idx}] ${el.tagName}:`, el.getAttribute("style"));
-          }
-        });
+    const stripPillMetadata = (element) => {
+      var _a2;
+      if (!element || element.nodeType !== Node.ELEMENT_NODE) return;
+      (_a2 = element.classList) == null ? void 0 : _a2.remove("var-pill", "filled", "empty", "focused");
+      if (element.classList && element.classList.length === 0) {
+        element.removeAttribute("class");
       }
-    } finally {
-      if (stagingHost.parentNode) {
-        stagingHost.parentNode.removeChild(stagingHost);
-      }
-    }
+      const attrsToRemove = ["data-var", "data-value", "data-display", "data-template", "contenteditable", "spellcheck"];
+      attrsToRemove.forEach((attr) => element.removeAttribute(attr));
+      Array.from(element.children || []).forEach(stripPillMetadata);
+    };
+    const setCloneContent = (target, htmlString = "") => {
+      target.innerHTML = "";
+      if (!htmlString) return;
+      const frag = document.createRange().createContextualFragment(htmlString);
+      target.appendChild(frag);
+    };
+    const PILL_TEMPLATE_TOKEN2 = "__RT_PILL_VALUE__";
+    Object.entries(values || {}).forEach(([varName, value]) => {
+      const nodes = wrapper.querySelectorAll(`[data-var="${cssEscape(varName)}"]`);
+      nodes.forEach((node) => {
+        var _a2;
+        const replacementValue = value !== void 0 && value !== null && String(value).length ? String(value) : `<<${varName}>>`;
+        const placeholder = `<<${varName}>>`;
+        const pillClone = node.cloneNode(false);
+        const injectAndReplace = (htmlString) => {
+          setCloneContent(pillClone, htmlString);
+          stripPillMetadata(pillClone);
+          node.replaceWith(pillClone);
+        };
+        const template = node.getAttribute("data-template") || ((_a2 = node.dataset) == null ? void 0 : _a2.template);
+        if (template && replacementValue !== placeholder) {
+          const sanitized = convertValueToHtml(replacementValue);
+          const applied = template.replace(PILL_TEMPLATE_TOKEN2, sanitized);
+          injectAndReplace(applied);
+        } else if (node.innerHTML && replacementValue !== placeholder) {
+          injectAndReplace(node.innerHTML);
+        } else {
+          pillClone.textContent = replacementValue;
+          stripPillMetadata(pillClone);
+          node.replaceWith(pillClone);
+        }
+      });
+    });
+    makeOutlookFriendly(wrapper);
     const htmlResult = wrapper.innerHTML;
     if (fallbackPlainText) {
       return { html: htmlResult, text: fallbackPlainText };
@@ -24907,4 +24642,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-CSY__fij.js.map
+//# sourceMappingURL=main-DYZ6cDrU.js.map
