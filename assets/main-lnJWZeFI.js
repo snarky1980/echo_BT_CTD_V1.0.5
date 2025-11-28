@@ -21579,7 +21579,7 @@ function App() {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="margin: 0; padding: 0;">
-<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000000; background-color: #ffffff;">
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000000;">
 ${bodyResult.html}
 </div>
 </body>
@@ -21595,8 +21595,8 @@ ${bodyResult.html}
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="margin: 0; padding: 0;">
-<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000000; background-color: #ffffff;">
-<div>${subjectResult.html || toSimpleHtml(resolvedSubject)}</div>
+<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #000000;">
+<div><strong>Subject:</strong> ${subjectResult.html || toSimpleHtml(resolvedSubject)}</div>
 <br>
 <div>${bodyResult.html}</div>
 </div>
@@ -21608,67 +21608,52 @@ ${bodyResult.text}`;
         break;
     }
     try {
-      const tempContainer = document.createElement("div");
-      tempContainer.style.position = "fixed";
-      tempContainer.style.left = "-9999px";
-      tempContainer.style.top = "-9999px";
-      tempContainer.style.width = "1px";
-      tempContainer.style.height = "1px";
-      tempContainer.style.opacity = "0";
-      tempContainer.style.overflow = "hidden";
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlContent, "text/html");
-      const contentToAdd = doc.body.cloneNode(true);
-      tempContainer.appendChild(contentToAdd);
-      document.body.appendChild(tempContainer);
-      const range = document.createRange();
-      range.selectNodeContents(tempContainer);
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
-      const success = document.execCommand("copy");
-      selection.removeAllRanges();
-      document.body.removeChild(tempContainer);
-      if (!success) {
-        throw new Error("execCommand copy failed");
+      if (navigator.clipboard && window.isSecureContext) {
+        const clipboardItem = new ClipboardItem({
+          "text/html": new Blob([htmlContent], { type: "text/html" }),
+          "text/plain": new Blob([textContent], { type: "text/plain" })
+        });
+        await navigator.clipboard.write([clipboardItem]);
+      } else {
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = htmlContent;
+        tempDiv.style.position = "fixed";
+        tempDiv.style.left = "-999999px";
+        tempDiv.style.top = "-999999px";
+        document.body.appendChild(tempDiv);
+        const range = document.createRange();
+        range.selectNodeContents(tempDiv);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        document.execCommand("copy");
+        selection.removeAllRanges();
+        document.body.removeChild(tempDiv);
       }
       setCopySuccess(type);
       setTimeout(() => setCopySuccess(null), 2e3);
     } catch (error) {
       console.error("Copy error:", error);
       try {
-        if (navigator.clipboard && navigator.clipboard.write) {
-          const clipboardItem = new ClipboardItem({
-            "text/html": new Blob([htmlContent], { type: "text/html" }),
-            "text/plain": new Blob([textContent], { type: "text/plain" })
-          });
-          await navigator.clipboard.write([clipboardItem]);
-          setCopySuccess(type);
-          setTimeout(() => setCopySuccess(null), 2e3);
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(textContent);
         } else {
-          throw new Error("Modern clipboard API unavailable");
+          const textArea = document.createElement("textarea");
+          textArea.value = textContent;
+          textArea.style.position = "fixed";
+          textArea.style.left = "-999999px";
+          textArea.style.top = "-999999px";
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          document.execCommand("copy");
+          textArea.remove();
         }
-      } catch (fallbackError) {
-        console.error("Fallback copy error:", fallbackError);
-        try {
-          if (navigator.clipboard) {
-            await navigator.clipboard.writeText(textContent);
-          } else {
-            const textArea = document.createElement("textarea");
-            textArea.value = textContent;
-            textArea.style.position = "fixed";
-            textArea.style.left = "-999999px";
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand("copy");
-            textArea.remove();
-          }
-          setCopySuccess(type);
-          setTimeout(() => setCopySuccess(null), 2e3);
-        } catch (finalError) {
-          console.error("All copy methods failed:", finalError);
-          alert("Copy failed. Please select the text manually and use Ctrl+C.");
-        }
+        setCopySuccess(type);
+        setTimeout(() => setCopySuccess(null), 2e3);
+      } catch (finalError) {
+        console.error("All copy methods failed:", finalError);
+        alert("Copy failed. Please select the text manually and use Ctrl+C.");
       }
     }
   };
@@ -24642,4 +24627,4 @@ const isHelpOnly = params.get("helpOnly") === "1";
 clientExports.createRoot(document.getElementById("root")).render(
   /* @__PURE__ */ jsxRuntimeExports.jsx(reactExports.StrictMode, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorBoundary, { children: /* @__PURE__ */ jsxRuntimeExports.jsx(ToastProvider, { children: isVarsOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(VariablesPage, {}) : isHelpOnly ? /* @__PURE__ */ jsxRuntimeExports.jsx(HelpPopout, {}) : /* @__PURE__ */ jsxRuntimeExports.jsx(App, {}) }) }) })
 );
-//# sourceMappingURL=main-DYZ6cDrU.js.map
+//# sourceMappingURL=main-lnJWZeFI.js.map
